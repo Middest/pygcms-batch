@@ -1,0 +1,10 @@
+# Test outputs
+test_output_*.xlsx
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
