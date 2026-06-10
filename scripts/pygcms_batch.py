@@ -1107,7 +1107,8 @@ def write_excel(results, stats, output_path):
     # --- Sheet 2: Chen 分类详细 ---
     ws2 = wb.create_sheet('Chen_分类详细')
     headers2 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
-                '化合物名称', '分子式', '分子量', 'InChIKey',
+                '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
+                '分子量', 'InChIKey',
                 'Chen化学类别', 'Chen来源归属', 'NOSC', 'ΔG_COX']
     for col, h in enumerate(headers2, 1):
         ws2.cell(row=1, column=col, value=h)
@@ -1124,14 +1125,24 @@ def write_excel(results, stats, output_path):
             ws2.cell(row=row, column=5, value=round(p['area']/total_area*100, 4) if total_area > 0 else 0)
             ws2.cell(row=row, column=6, value=p.get('si', ''))
             ws2.cell(row=row, column=7, value=p.get('cas', ''))
+            atoms = p.get('atoms', {})
+            other_elem = ', '.join(f'{k}:{v}' for k, v in atoms.get('other', {}).items()) if atoms.get('other') else ''
+
             ws2.cell(row=row, column=8, value=p['name'])
             ws2.cell(row=row, column=9, value=p.get('formula', ''))
-            ws2.cell(row=row, column=10, value=p.get('mol_weight', ''))
-            ws2.cell(row=row, column=11, value=p.get('inchikey', ''))
-            ws2.cell(row=row, column=12, value=p['chen_group'])
-            ws2.cell(row=row, column=13, value=p['chen_source'])
-            ws2.cell(row=row, column=14, value=p.get('nosc', ''))
-            ws2.cell(row=row, column=15, value=p.get('dg_cox', ''))
+            ws2.cell(row=row, column=10, value=atoms.get('C', ''))
+            ws2.cell(row=row, column=11, value=atoms.get('H', ''))
+            ws2.cell(row=row, column=12, value=atoms.get('O', '') if atoms.get('O') else '')
+            ws2.cell(row=row, column=13, value=atoms.get('N', '') if atoms.get('N') else '')
+            ws2.cell(row=row, column=14, value=atoms.get('P', '') if atoms.get('P') else '')
+            ws2.cell(row=row, column=15, value=atoms.get('S', '') if atoms.get('S') else '')
+            ws2.cell(row=row, column=16, value=other_elem)
+            ws2.cell(row=row, column=17, value=p.get('mol_weight', ''))
+            ws2.cell(row=row, column=18, value=p.get('inchikey', ''))
+            ws2.cell(row=row, column=19, value=p['chen_group'])
+            ws2.cell(row=row, column=20, value=p['chen_source'])
+            ws2.cell(row=row, column=21, value=p.get('nosc', ''))
+            ws2.cell(row=row, column=22, value=p.get('dg_cox', ''))
             for col in range(1, len(headers2) + 1):
                 ws2.cell(row=row, column=col).font = cell_font
                 ws2.cell(row=row, column=col).border = thin_border
@@ -1191,7 +1202,8 @@ def write_excel(results, stats, output_path):
     # --- Sheet 5: Kallenbach 分类详细 ---
     ws5 = wb.create_sheet('Kallenbach_分类详细')
     headers5 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
-                '化合物名称', '分子式', '分子量', 'InChIKey',
+                '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
+                '分子量', 'InChIKey',
                 'Kallenbach化学类别', 'Kallenbach来源归属']
     for col, h in enumerate(headers5, 1):
         ws5.cell(row=1, column=col, value=h)
@@ -1208,12 +1220,22 @@ def write_excel(results, stats, output_path):
             ws5.cell(row=row, column=5, value=round(p['area']/total_area*100, 4) if total_area > 0 else 0)
             ws5.cell(row=row, column=6, value=p.get('si', ''))
             ws5.cell(row=row, column=7, value=p.get('cas', ''))
+            atoms = p.get('atoms', {})
+            other_elem = ', '.join(f'{k}:{v}' for k, v in atoms.get('other', {}).items()) if atoms.get('other') else ''
+
             ws5.cell(row=row, column=8, value=p['name'])
             ws5.cell(row=row, column=9, value=p.get('formula', ''))
-            ws5.cell(row=row, column=10, value=p.get('mol_weight', ''))
-            ws5.cell(row=row, column=11, value=p.get('inchikey', ''))
-            ws5.cell(row=row, column=12, value=p['kal_group'])
-            ws5.cell(row=row, column=13, value=p['kal_source'])
+            ws5.cell(row=row, column=10, value=atoms.get('C', ''))
+            ws5.cell(row=row, column=11, value=atoms.get('H', ''))
+            ws5.cell(row=row, column=12, value=atoms.get('O', '') if atoms.get('O') else '')
+            ws5.cell(row=row, column=13, value=atoms.get('N', '') if atoms.get('N') else '')
+            ws5.cell(row=row, column=14, value=atoms.get('P', '') if atoms.get('P') else '')
+            ws5.cell(row=row, column=15, value=atoms.get('S', '') if atoms.get('S') else '')
+            ws5.cell(row=row, column=16, value=other_elem)
+            ws5.cell(row=row, column=17, value=p.get('mol_weight', ''))
+            ws5.cell(row=row, column=18, value=p.get('inchikey', ''))
+            ws5.cell(row=row, column=19, value=p['kal_group'])
+            ws5.cell(row=row, column=20, value=p['kal_source'])
             for col in range(1, len(headers5) + 1):
                 ws5.cell(row=row, column=col).font = cell_font
                 ws5.cell(row=row, column=col).border = thin_border
