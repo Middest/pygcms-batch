@@ -14,6 +14,11 @@ import os
 import re
 import json
 import argparse
+import time
+import urllib.request
+import urllib.parse
+import urllib.error
+import ssl
 from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -83,6 +88,208 @@ def compute_nosc_and_dg(atoms):
 
     return round(nosc, 6), round(dg_cox, 3)
 
+
+# ============================================================================
+# 1.5 NIST Chemistry WebBook Online Query
+# ============================================================================
+
+# Cache to avoid repeated queries
+_nist_webbook_cache = {}
+_nist_cache_file = None
+
+
+def _get_cache_path():
+    """Get path to NIST WebBook cache file."""
+    return os.path.join(_SCRIPT_DIR, '..', 'data', 'nist_webbook_cache.json')
+
+
+def _load_cache():
+    """Load NIST WebBook cache from disk."""
+    global _nist_webbook_cache, _nist_cache_file
+    _nist_cache_file = _get_cache_path()
+    if os.path.exists(_nist_cache_file):
+        try:
+            with open(_nist_cache_file, 'r', encoding='utf-8') as f:
+                _nist_webbook_cache = json.load(f)
+        except Exception:
+            _nist_webbook_cache = {}
+    return _nist_webbook_cache
+
+
+def _save_cache():
+    """Save NIST WebBook cache to disk."""
+    if _nist_cache_file:
+        os.makedirs(os.path.dirname(_nist_cache_file), exist_ok=True)
+        with open(_nist_cache_file, 'w', encoding='utf-8') as f:
+            json.dump(_nist_webbook_cache, f, ensure_ascii=False, indent=2)
+
+
+def query_nist_webbook_by_cas(cas, use_cache=True):
+    """
+    Query NIST Chemistry WebBook by CAS number.
+    Returns dict with: formula, mol_weight, inchi, inchikey, iupac_name, cas_verified
+    Returns None if not found.
+    """
+    if not cas or cas in ('0 - 00 - 0', '0-00-0', 'N/A', ''):
+        return None
+
+    cache = _load_cache() if use_cache else {}
+    cache_key = f'CAS:{cas}'
+    if cache_key in cache:
+        return cache[cache_key]
+
+    # Clean CAS: remove spaces, keep digits and hyphens
+    cas_clean = re.sub(r'\s+', '', cas)
+    cas_digits = cas_clean.replace('-', '')
+
+    url = f'https://webbook.nist.gov/cgi/cbook.cgi?ID=C{cas_digits}&Units=SI&Mask=2000'
+
+    try:
+        # Allow self-signed certs for resilience
+        ctx = ssl.create_default_context()
+        req = urllib.request.Request(url, headers={'User-Agent': 'pygcms-batch/1.0 (academic)'})
+        with urllib.request.urlopen(req, timeout=20, context=ctx) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+
+        result = {}
+
+        # Extract JSON-LD structured data
+        formula_m = re.search(r'"molecularFormula"\s*:\s*"([^"]+)"', html)
+        if formula_m:
+            result['formula'] = formula_m.group(1)
+
+        mw_m = re.search(r'"molecularWeight"\s*:\s*"([^"]+)"', html)
+        if mw_m:
+            result['mol_weight'] = mw_m.group(1)
+
+        inchi_m = re.search(r'"inChI"\s*:\s*"([^"]+)"', html)
+        if inchi_m:
+            result['inchi'] = inchi_m.group(1)
+
+        inchikey_m = re.search(r'"inChIKey"\s*:\s*"([^"]+)"', html)
+        if inchikey_m:
+            result['inchikey'] = inchikey_m.group(1)
+
+        name_m = re.search(r'"name"\s*:\s*"([^"]+)"', html)
+        if name_m:
+            result['iupac_name'] = name_m.group(1)
+
+        # Check if CAS was found
+        if 'Species not found' in html or 'no data' in html.lower():
+            result['status'] = 'not_found'
+            cache[cache_key] = None
+            _save_cache()
+            return None
+
+        if result:
+            result['status'] = 'found'
+            result['cas_queried'] = cas_clean
+            cache[cache_key] = result
+            _save_cache()
+            return result
+        else:
+            cache[cache_key] = None
+            _save_cache()
+            return None
+
+    except Exception as e:
+        # Network error or timeout — don't cache, allow retry
+        return {'status': 'error', 'error': str(e)}
+
+
+def query_nist_webbook_by_name(name, use_cache=True):
+    """
+    Query NIST Chemistry WebBook by compound name.
+    Slower and less reliable than CAS lookup. Use CAS when available.
+    """
+    if not name or len(name) < 3:
+        return None
+
+    cache = _load_cache() if use_cache else {}
+    cache_key = f'NAME:{name[:80]}'
+    if cache_key in cache:
+        return cache[cache_key]
+
+    # URL-encode the name
+    encoded_name = urllib.parse.quote(name[:80])
+    url = f'https://webbook.nist.gov/cgi/cbook.cgi?Name={encoded_name}&Units=SI&Mask=2000'
+
+    try:
+        ctx = ssl.create_default_context()
+        req = urllib.request.Request(url, headers={'User-Agent': 'pygcms-batch/1.0 (academic)'})
+        with urllib.request.urlopen(req, timeout=20, context=ctx) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+
+        if 'no data' in html.lower() or 'Species not found' in html:
+            cache[cache_key] = None
+            _save_cache()
+            return None
+
+        result = {}
+        formula_m = re.search(r'"molecularFormula"\s*:\s*"([^"]+)"', html)
+        if formula_m:
+            result['formula'] = formula_m.group(1)
+        mw_m = re.search(r'"molecularWeight"\s*:\s*"([^"]+)"', html)
+        if mw_m:
+            result['mol_weight'] = mw_m.group(1)
+        inchi_m = re.search(r'"inChI"\s*:\s*"([^"]+)"', html)
+        if inchi_m:
+            result['inchi'] = inchi_m.group(1)
+        inchikey_m = re.search(r'"inChIKey"\s*:\s*"([^"]+)"', html)
+        if inchikey_m:
+            result['inchikey'] = inchikey_m.group(1)
+
+        if result:
+            result['status'] = 'found'
+            cache[cache_key] = result
+            _save_cache()
+            return result
+        else:
+            cache[cache_key] = None
+            _save_cache()
+            return None
+
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}
+
+
+def enrich_compound_with_webbook(name, cas, existing_formula=''):
+    """
+    Enrich a compound entry with NIST WebBook data.
+    Prioritizes CAS lookup, falls back to name lookup.
+    Returns dict with any new fields found, or empty dict.
+    """
+    result = {}
+
+    # Only query if we're missing key data
+    need_formula = not existing_formula or len(existing_formula) < 2
+
+    # Try CAS first (most reliable)
+    wb_data = query_nist_webbook_by_cas(cas)
+    if wb_data and wb_data.get('status') == 'found':
+        if need_formula and wb_data.get('formula'):
+            result['formula'] = wb_data['formula']
+        if wb_data.get('inchi'):
+            result['inchi'] = wb_data['inchi']
+        if wb_data.get('inchikey'):
+            result['inchikey'] = wb_data['inchikey']
+        if wb_data.get('mol_weight'):
+            result['mol_weight_wb'] = wb_data['mol_weight']
+        return result
+
+    # Fall back to name lookup if CAS failed
+    if need_formula:
+        wb_data = query_nist_webbook_by_name(name)
+        if wb_data and wb_data.get('status') == 'found':
+            if need_formula and wb_data.get('formula'):
+                result['formula'] = wb_data['formula']
+            if wb_data.get('inchi'):
+                result['inchi'] = wb_data['inchi']
+            if wb_data.get('inchikey'):
+                result['inchikey'] = wb_data['inchikey']
+            return result
+
+    return result
 
 def parse_nist_txt(filepath):
     """
@@ -702,13 +909,15 @@ def classify_compound_kallenbach(name, lookup=None):
 # 3. BATCH PROCESSING
 # ============================================================================
 
-def process_directory(input_dir, sample_map=None):
+def process_directory(input_dir, sample_map=None, enrich=False, enrich_delay=0.5):
     """
     Process all TXT files in directory recursively.
 
     Args:
         input_dir: path to directory containing TXT files
         sample_map: dict mapping sample code to treatment name, e.g. {'5':'CK'}
+        enrich: if True, query NIST WebBook for missing formulas
+        enrich_delay: seconds between WebBook queries (be polite)
 
     Returns:
         dict with sample-level results
@@ -717,6 +926,7 @@ def process_directory(input_dir, sample_map=None):
         sample_map = {}
 
     results = {}
+    total_enriched = 0
 
     for root, dirs, files in os.walk(input_dir):
         for fname in files:
@@ -743,40 +953,60 @@ def process_directory(input_dir, sample_map=None):
                 print(f"    WARNING: No peaks found in {fname}")
                 continue
 
-            # Process each peak with classification
-            processed = []
+            # Enrich with NIST WebBook
+            enriched_count = 0
             for p in peaks:
-                atoms = {'C': 0, 'H': 0, 'O': 0, 'N': 0, 'P': 0, 'S': 0, 'other': {}}
-                nosc, dg = None, None
+                has_formula = p.get('formula') and len(p.get('formula', '')) >= 2
 
-                # Try to extract molecular formula from name (if formula-like pattern)
-                # Simple formula detection in the name
-                formula_pattern = re.findall(r'[A-Z][a-z]?\d*', p['name'])
+                if enrich and not has_formula:
+                    # Query WebBook
+                    wb = enrich_compound_with_webbook(
+                        p.get('name', ''),
+                        p.get('cas', ''),
+                        p.get('formula', '')
+                    )
+                    if wb:
+                        if wb.get('formula'):
+                            p['formula'] = wb['formula']
+                            p['formula_source'] = 'NIST_WebBook'
+                            # Recalculate atoms, NOSC, dG
+                            p['atoms'] = parse_molecular_formula(wb['formula'])
+                            nosc, dg = compute_nosc_and_dg(p['atoms'])
+                            p['nosc'] = nosc
+                            p['dg_cox'] = dg
+                            enriched_count += 1
+                        if wb.get('inchi'):
+                            p['inchi'] = wb['inchi']
+                        if wb.get('inchikey'):
+                            p['inchikey'] = wb['inchikey']
+                    time.sleep(enrich_delay)
 
-                # Classify
-                chen_group, chen_source = classify_compound_chen(p['name'])
-                kal_group, kal_source = classify_compound_kallenbach(p['name'])
+            if enrich and enriched_count > 0:
+                print(f"    Enriched {enriched_count} compounds from NIST WebBook")
+                total_enriched += enriched_count
 
-                processed.append({
-                    **p,
-                    'chen_group': chen_group,
-                    'chen_source': chen_source,
-                    'kal_group': kal_group,
-                    'kal_source': kal_source,
-                    'atoms': atoms,
-                    'nosc': nosc,
-                    'dg_cox': dg
-                })
+            # Classify each peak
+            lookup = _load_lookup()
+            for p in peaks:
+                chen_group, chen_source = classify_compound_chen(p['name'], lookup)
+                kal_group, kal_source = classify_compound_kallenbach(p['name'], lookup)
+                p['chen_group'] = chen_group
+                p['chen_source'] = chen_source
+                p['kal_group'] = kal_group
+                p['kal_source'] = kal_source
 
             results[treatment] = {
                 'sample_code': sample_code,
                 'filepath': filepath,
-                'total_peaks': len(peaks),
-                'processed_peaks': len(processed),
-                'peaks': processed
+                'total_peaks_raw': len(peaks),
+                'processed_peaks': len(peaks),
+                'peaks': peaks
             }
 
-            print(f"    {len(processed)} peaks processed")
+            print(f"    {len(peaks)} peaks processed")
+
+    if enrich:
+        print(f"\n  Total enriched from NIST WebBook: {total_enriched} compounds")
 
     return results
 
@@ -861,7 +1091,7 @@ def write_excel(results, stats, output_path):
 
         ws1.cell(row=row, column=1, value=data['sample_code'])
         ws1.cell(row=row, column=2, value=treatment)
-        ws1.cell(row=row, column=3, value=data['total_peaks'])
+        ws1.cell(row=row, column=3, value=data.get('total_peaks_raw', data.get('total_peaks', len(data['peaks']))))
         ws1.cell(row=row, column=4, value=len(peaks))
         ws1.cell(row=row, column=5, value=total_area)
         ws1.cell(row=row, column=6, value=total_area)  # All passed SI>=80
@@ -876,8 +1106,9 @@ def write_excel(results, stats, output_path):
 
     # --- Sheet 2: Chen 分类详细 ---
     ws2 = wb.create_sheet('Chen_分类详细')
-    headers2 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', '化合物名称',
-                'Chen化学类别', 'Chen来源归属']
+    headers2 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
+                '化合物名称', '分子式', '分子量', 'InChIKey',
+                'Chen化学类别', 'Chen来源归属', 'NOSC', 'ΔG_COX']
     for col, h in enumerate(headers2, 1):
         ws2.cell(row=1, column=col, value=h)
     style_header(ws2, 1, len(headers2))
@@ -891,9 +1122,16 @@ def write_excel(results, stats, output_path):
             ws2.cell(row=row, column=3, value=round(p['ret_time'], 3))
             ws2.cell(row=row, column=4, value=p['area'])
             ws2.cell(row=row, column=5, value=round(p['area']/total_area*100, 4) if total_area > 0 else 0)
-            ws2.cell(row=row, column=6, value=p['name'])
-            ws2.cell(row=row, column=7, value=p['chen_group'])
-            ws2.cell(row=row, column=8, value=p['chen_source'])
+            ws2.cell(row=row, column=6, value=p.get('si', ''))
+            ws2.cell(row=row, column=7, value=p.get('cas', ''))
+            ws2.cell(row=row, column=8, value=p['name'])
+            ws2.cell(row=row, column=9, value=p.get('formula', ''))
+            ws2.cell(row=row, column=10, value=p.get('mol_weight', ''))
+            ws2.cell(row=row, column=11, value=p.get('inchikey', ''))
+            ws2.cell(row=row, column=12, value=p['chen_group'])
+            ws2.cell(row=row, column=13, value=p['chen_source'])
+            ws2.cell(row=row, column=14, value=p.get('nosc', ''))
+            ws2.cell(row=row, column=15, value=p.get('dg_cox', ''))
             for col in range(1, len(headers2) + 1):
                 ws2.cell(row=row, column=col).font = cell_font
                 ws2.cell(row=row, column=col).border = thin_border
@@ -952,7 +1190,8 @@ def write_excel(results, stats, output_path):
 
     # --- Sheet 5: Kallenbach 分类详细 ---
     ws5 = wb.create_sheet('Kallenbach_分类详细')
-    headers5 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', '化合物名称',
+    headers5 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
+                '化合物名称', '分子式', '分子量', 'InChIKey',
                 'Kallenbach化学类别', 'Kallenbach来源归属']
     for col, h in enumerate(headers5, 1):
         ws5.cell(row=1, column=col, value=h)
@@ -967,9 +1206,14 @@ def write_excel(results, stats, output_path):
             ws5.cell(row=row, column=3, value=round(p['ret_time'], 3))
             ws5.cell(row=row, column=4, value=p['area'])
             ws5.cell(row=row, column=5, value=round(p['area']/total_area*100, 4) if total_area > 0 else 0)
-            ws5.cell(row=row, column=6, value=p['name'])
-            ws5.cell(row=row, column=7, value=p['kal_group'])
-            ws5.cell(row=row, column=8, value=p['kal_source'])
+            ws5.cell(row=row, column=6, value=p.get('si', ''))
+            ws5.cell(row=row, column=7, value=p.get('cas', ''))
+            ws5.cell(row=row, column=8, value=p['name'])
+            ws5.cell(row=row, column=9, value=p.get('formula', ''))
+            ws5.cell(row=row, column=10, value=p.get('mol_weight', ''))
+            ws5.cell(row=row, column=11, value=p.get('inchikey', ''))
+            ws5.cell(row=row, column=12, value=p['kal_group'])
+            ws5.cell(row=row, column=13, value=p['kal_source'])
             for col in range(1, len(headers5) + 1):
                 ws5.cell(row=row, column=col).font = cell_font
                 ws5.cell(row=row, column=col).border = thin_border
@@ -1039,8 +1283,9 @@ def write_excel(results, stats, output_path):
         ['5. 来源归属', '植物源(plant)、微生物源(microbial)、混合来源(mixed)'],
         ['6. 化学类别(Chen)', 'lipids, monocyclic_aromatics, polycyclic_aromatics, phenolics, polysaccharides, lignins, amino_N_bearing, heterocyclic_N_bearing, other_N_bearing, unspecified'],
         ['7. 化学类别(Kallenbach)', 'lipids, lignin_derivatives, polysaccharides, proteins, non_protein_N, phenolics, aromatics, unspecified'],
-        ['8. 注意', '分类基于化合物名称的关键词匹配。对于需要精确归属的化合物，请人工核对NIST谱库信息。'],
-        ['9. 脚本', 'pygcms-batch skill v1.0']
+        ['8. NIST WebBook', '通过 --enrich 启用在线查询补全缺失的分子式/InChIKey'],
+        ['9. 注意', '分类基于286条精确映射表 + 关键词兜底。对于需验证的化合物请人工核对。'],
+        ['10. 脚本', 'pygcms-batch skill v1.1']
     ]
     for i, row_data in enumerate(info, 1):
         for j, val in enumerate(row_data, 1):
@@ -1085,6 +1330,10 @@ def main():
                         help='Output Excel file path (.xlsx)')
     parser.add_argument('--sample_map', '-m', default=None,
                         help='JSON file mapping sample codes to treatment names')
+    parser.add_argument('--enrich', '-e', action='store_true',
+                        help='Query NIST Chemistry WebBook to fill missing molecular formulas')
+    parser.add_argument('--enrich_delay', type=float, default=0.5,
+                        help='Delay in seconds between WebBook queries (default: 0.5)')
 
     args = parser.parse_args()
 
@@ -1103,7 +1352,8 @@ def main():
     print()
 
     # Process
-    results = process_directory(args.input, sample_map)
+    results = process_directory(args.input, sample_map, enrich=args.enrich,
+                                enrich_delay=args.enrich_delay)
 
     if not results:
         print("ERROR: No valid TXT files found or no peaks extracted!")
