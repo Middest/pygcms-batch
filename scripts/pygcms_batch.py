@@ -385,12 +385,11 @@ def parse_nist_txt(filepath):
                         pass
 
     # === Step 3: Merge NIST data with MC Peak Table data ===
-    # Only keep peaks that have NIST Hit#1 with SI >= 80
-    peaks = []
-    for spectrum_num, nist in nist_data.items():
-        if nist['si'] < 80:
-            continue
+    # Build ALL peaks (including SI<80) and SI>=80 filtered peaks
+    all_peaks = []
+    filtered_peaks = []
 
+    for spectrum_num, nist in nist_data.items():
         mc = mc_peaks.get(spectrum_num, {})
         area = mc.get('area', 0)
         ret_time = mc.get('ret_time', 0)
@@ -401,7 +400,7 @@ def parse_nist_txt(filepath):
             atoms = parse_molecular_formula(nist['formula'])
         nosc, dg = compute_nosc_and_dg(atoms)
 
-        peaks.append({
+        peak_entry = {
             'peak_num': spectrum_num,
             'ret_time': ret_time,
             'area': area,
@@ -413,9 +412,30 @@ def parse_nist_txt(filepath):
             'atoms': atoms,
             'nosc': nosc,
             'dg_cox': dg
-        })
+        }
 
-    return peaks
+        all_peaks.append(peak_entry)
+        if nist['si'] >= 80:
+            filtered_peaks.append(peak_entry)
+
+    # Also include MC peaks that had no NIST hit (SI=0, no formula)
+    for peak_num, mc in mc_peaks.items():
+        if peak_num not in nist_data:
+            all_peaks.append({
+                'peak_num': peak_num,
+                'ret_time': mc.get('ret_time', 0),
+                'area': mc.get('area', 0),
+                'name': '',
+                'si': 0,
+                'cas': '',
+                'formula': '',
+                'mol_weight': '',
+                'atoms': {'C': 0, 'H': 0, 'O': 0, 'N': 0, 'P': 0, 'S': 0, 'other': {}},
+                'nosc': None,
+                'dg_cox': None
+            })
+
+    return all_peaks, filtered_peaks
 
 
 # ============================================================================
@@ -947,15 +967,15 @@ def process_directory(input_dir, sample_map=None, enrich=False, enrich_delay=0.5
             print(f"  Processing: {fname} -> {treatment}")
 
             # Parse peaks
-            peaks = parse_nist_txt(filepath)
+            all_peaks, filtered_peaks = parse_nist_txt(filepath)
 
-            if not peaks:
+            if not all_peaks:
                 print(f"    WARNING: No peaks found in {fname}")
                 continue
 
-            # Enrich with NIST WebBook
+            # Enrich with NIST WebBook (only for filtered peaks with missing formulas)
             enriched_count = 0
-            for p in peaks:
+            for p in filtered_peaks:
                 has_formula = p.get('formula') and len(p.get('formula', '')) >= 2
 
                 if enrich and not has_formula:
@@ -985,9 +1005,9 @@ def process_directory(input_dir, sample_map=None, enrich=False, enrich_delay=0.5
                 print(f"    Enriched {enriched_count} compounds from NIST WebBook")
                 total_enriched += enriched_count
 
-            # Classify each peak
+            # Classify each peak (all peaks and filtered)
             lookup = _load_lookup()
-            for p in peaks:
+            for p in all_peaks:
                 chen_group, chen_source = classify_compound_chen(p['name'], lookup)
                 kal_group, kal_source = classify_compound_kallenbach(p['name'], lookup)
                 p['chen_group'] = chen_group
@@ -995,15 +1015,21 @@ def process_directory(input_dir, sample_map=None, enrich=False, enrich_delay=0.5
                 p['kal_group'] = kal_group
                 p['kal_source'] = kal_source
 
+            # Classification already applied to all_peaks; filtered_peaks share the same dicts
+            # (since they are the same objects) — no need to re-classify
+
+            nist_total = sum(1 for p in all_peaks if p.get('si', 0) > 0)
             results[treatment] = {
                 'sample_code': sample_code,
                 'filepath': filepath,
-                'total_peaks_raw': len(peaks),
-                'processed_peaks': len(peaks),
-                'peaks': peaks
+                'mc_total_peaks': len(all_peaks),
+                'nist_searched_peaks': nist_total,
+                'si80_peaks': len(filtered_peaks),
+                'all_peaks': all_peaks,
+                'filtered_peaks': filtered_peaks
             }
 
-            print(f"    {len(peaks)} peaks processed")
+            print(f"    MC={len(all_peaks)}, NIST_searched={nist_total}, SI>=80={len(filtered_peaks)}")
 
     if enrich:
         print(f"\n  Total enriched from NIST WebBook: {total_enriched} compounds")
@@ -1012,12 +1038,12 @@ def process_directory(input_dir, sample_map=None, enrich=False, enrich_delay=0.5
 
 
 def compute_statistics(results):
-    """Compute source attribution and group statistics."""
+    """Compute source attribution and group statistics (on SI>=80 filtered data)."""
     stats = {}
 
     for treatment, data in results.items():
-        peaks = data['peaks']
-        total_area = sum(p['area'] for p in peaks)
+        peaks = data['filtered_peaks']
+        total_area = sum(p['area'] for p in peaks) if peaks else 0
 
         # Chen statistics
         chen_source = defaultdict(float)
@@ -1073,38 +1099,89 @@ def write_excel(results, stats, output_path):
             cell.border = thin_border
             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
-    # --- Sheet 1: 筛选统计 ---
+    # --- Sheet 1: 全化合物汇总 (ALL peaks, before SI filter) ---
     ws1 = wb.active
-    ws1.title = '筛选统计'
-    headers1 = ['样品代码', '处理', '原始峰数', 'SI>=80峰数', '原始总面积', '筛选后总面积',
-                '筛选后面积/原始面积_%', '相对丰度合计_%', '筛选后唯一化合物数', '含卤素/其他元素化合物数']
+    ws1.title = '全化合物汇总'
+    headers1 = ['处理', '峰号', '保留时间_min', '峰面积', 'SI', 'CAS',
+                '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
+                '分子量', 'Chen化学类别', 'Chen来源归属', 'Kallenbach化学类别', 'Kallenbach来源归属',
+                'NOSC', 'ΔG_COX', 'SI>=80']
     for col, h in enumerate(headers1, 1):
         ws1.cell(row=1, column=col, value=h)
     style_header(ws1, 1, len(headers1))
 
     row = 2
     for treatment, data in results.items():
-        peaks = data['peaks']
-        total_area = sum(p['area'] for p in peaks)
-        unique = len(set(p['name'] for p in peaks))
-        exotic = sum(1 for p in peaks if p['atoms']['other'])
+        all_total_area = sum(p['area'] for p in data['all_peaks'])
+        for p in data['all_peaks']:
+            atoms = p.get('atoms', {})
+            other_elem = ', '.join(f'{k}:{v}' for k, v in atoms.get('other', {}).items()) if atoms.get('other') else ''
+            si = p.get('si', 0)
+            passed = 'Yes' if si >= 80 else 'No'
 
-        ws1.cell(row=row, column=1, value=data['sample_code'])
-        ws1.cell(row=row, column=2, value=treatment)
-        ws1.cell(row=row, column=3, value=data.get('total_peaks_raw', data.get('total_peaks', len(data['peaks']))))
-        ws1.cell(row=row, column=4, value=len(peaks))
-        ws1.cell(row=row, column=5, value=total_area)
-        ws1.cell(row=row, column=6, value=total_area)  # All passed SI>=80
-        ws1.cell(row=row, column=7, value=100.0)
-        ws1.cell(row=row, column=8, value=100.0)
-        ws1.cell(row=row, column=9, value=unique)
-        ws1.cell(row=row, column=10, value=exotic)
-        for col in range(1, len(headers1) + 1):
-            ws1.cell(row=row, column=col).font = cell_font
-            ws1.cell(row=row, column=col).border = thin_border
+            ws1.cell(row=row, column=1, value=treatment)
+            ws1.cell(row=row, column=2, value=p['peak_num'])
+            ws1.cell(row=row, column=3, value=round(p['ret_time'], 3))
+            ws1.cell(row=row, column=4, value=p['area'])
+            ws1.cell(row=row, column=5, value=si)
+            ws1.cell(row=row, column=6, value=p.get('cas', ''))
+            ws1.cell(row=row, column=7, value=p.get('name', ''))
+            ws1.cell(row=row, column=8, value=p.get('formula', ''))
+            ws1.cell(row=row, column=9, value=atoms.get('C', ''))
+            ws1.cell(row=row, column=10, value=atoms.get('H', ''))
+            ws1.cell(row=row, column=11, value=atoms.get('O', '') if atoms.get('O') else '')
+            ws1.cell(row=row, column=12, value=atoms.get('N', '') if atoms.get('N') else '')
+            ws1.cell(row=row, column=13, value=atoms.get('P', '') if atoms.get('P') else '')
+            ws1.cell(row=row, column=14, value=atoms.get('S', '') if atoms.get('S') else '')
+            ws1.cell(row=row, column=15, value=other_elem)
+            ws1.cell(row=row, column=16, value=p.get('mol_weight', ''))
+            ws1.cell(row=row, column=17, value=p.get('chen_group', ''))
+            ws1.cell(row=row, column=18, value=p.get('chen_source', ''))
+            ws1.cell(row=row, column=19, value=p.get('kal_group', ''))
+            ws1.cell(row=row, column=20, value=p.get('kal_source', ''))
+            ws1.cell(row=row, column=21, value=p.get('nosc', ''))
+            ws1.cell(row=row, column=22, value=p.get('dg_cox', ''))
+            ws1.cell(row=row, column=23, value=passed)
+            for col in range(1, len(headers1) + 1):
+                ws1.cell(row=row, column=col).font = cell_font
+                ws1.cell(row=row, column=col).border = thin_border
+            row += 1
+
+    # --- Sheet 2: 筛选统计 ---
+    ws12 = wb.create_sheet('筛选统计')
+    headers12 = ['样品代码', '处理', 'MC总峰数', 'NIST检索峰数', 'SI>=80峰数',
+                 'SI>=80保留率_%', 'MC总面积', 'SI>=80总面积', 'SI>=80面积保留率_%',
+                 'SI>=80唯一化合物数', '含卤素/其他元素化合物数']
+    for col, h in enumerate(headers12, 1):
+        ws12.cell(row=1, column=col, value=h)
+    style_header(ws12, 1, len(headers12))
+
+    row = 2
+    for treatment, data in results.items():
+        all_peaks = data['all_peaks']
+        filtered = data['filtered_peaks']
+        all_area = sum(p['area'] for p in all_peaks)
+        si80_area = sum(p['area'] for p in filtered)
+        unique = len(set(p['name'] for p in filtered if p.get('name')))
+        exotic = sum(1 for p in filtered if p.get('atoms', {}).get('other'))
+
+        ws12.cell(row=row, column=1, value=data['sample_code'])
+        ws12.cell(row=row, column=2, value=treatment)
+        ws12.cell(row=row, column=3, value=len(all_peaks))
+        ws12.cell(row=row, column=4, value=data.get('nist_searched_peaks', 0))
+        ws12.cell(row=row, column=5, value=len(filtered))
+        ws12.cell(row=row, column=6, value=round(len(filtered)/max(len(all_peaks),1)*100, 1))
+        ws12.cell(row=row, column=7, value=all_area)
+        ws12.cell(row=row, column=8, value=si80_area)
+        ws12.cell(row=row, column=9, value=round(si80_area/max(all_area,1)*100, 1))
+        ws12.cell(row=row, column=10, value=unique)
+        ws12.cell(row=row, column=11, value=exotic)
+        for col in range(1, len(headers12) + 1):
+            ws12.cell(row=row, column=col).font = cell_font
+            ws12.cell(row=row, column=col).border = thin_border
         row += 1
 
-    # --- Sheet 2: Chen 分类详细 ---
+    # --- Sheet 3: SI>=80 分类详细 (Chen) ---
     ws2 = wb.create_sheet('Chen_分类详细')
     headers2 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
                 '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
@@ -1116,8 +1193,8 @@ def write_excel(results, stats, output_path):
 
     row = 2
     for treatment, data in results.items():
-        total_area = sum(p['area'] for p in data['peaks'])
-        for p in data['peaks']:
+        total_area = sum(p['area'] for p in data['filtered_peaks'])
+        for p in data['filtered_peaks']:
             ws2.cell(row=row, column=1, value=treatment)
             ws2.cell(row=row, column=2, value=p['peak_num'])
             ws2.cell(row=row, column=3, value=round(p['ret_time'], 3))
@@ -1160,8 +1237,8 @@ def write_excel(results, stats, output_path):
         for source in ['plant', 'microbial', 'mixed']:
             ws3.cell(row=row, column=1, value=treatment)
             ws3.cell(row=row, column=2, value=source)
-            ws3.cell(row=row, column=3, value=sum(1 for p in results[treatment]['peaks'] if p['chen_source'] == source))
-            area_sum = sum(p['area'] for p in results[treatment]['peaks'] if p['chen_source'] == source)
+            ws3.cell(row=row, column=3, value=sum(1 for p in results[treatment]['filtered_peaks'] if p['chen_source'] == source))
+            area_sum = sum(p['area'] for p in results[treatment]['filtered_peaks'] if p['chen_source'] == source)
             ws3.cell(row=row, column=4, value=area_sum)
             ws3.cell(row=row, column=5, value=round(st['chen_source'].get(source, 0), 2))
             for col in range(1, len(headers3) + 1):
@@ -1172,7 +1249,7 @@ def write_excel(results, stats, output_path):
         # Add total row
         ws3.cell(row=row, column=1, value=treatment)
         ws3.cell(row=row, column=2, value='合计')
-        ws3.cell(row=row, column=3, value=len(results[treatment]['peaks']))
+        ws3.cell(row=row, column=3, value=len(results[treatment]['filtered_peaks']))
         ws3.cell(row=row, column=4, value=st['total_area'])
         ws3.cell(row=row, column=5, value=100.0)
         for col in range(1, len(headers3) + 1):
@@ -1211,8 +1288,8 @@ def write_excel(results, stats, output_path):
 
     row = 2
     for treatment, data in results.items():
-        total_area = sum(p['area'] for p in data['peaks'])
-        for p in data['peaks']:
+        total_area = sum(p['area'] for p in data['filtered_peaks'])
+        for p in data['filtered_peaks']:
             ws5.cell(row=row, column=1, value=treatment)
             ws5.cell(row=row, column=2, value=p['peak_num'])
             ws5.cell(row=row, column=3, value=round(p['ret_time'], 3))
@@ -1253,8 +1330,8 @@ def write_excel(results, stats, output_path):
         for source in ['plant', 'microbial', 'mixed']:
             ws6.cell(row=row, column=1, value=treatment)
             ws6.cell(row=row, column=2, value=source)
-            count = sum(1 for p in results[treatment]['peaks'] if p['kal_source'] == source)
-            area_sum = sum(p['area'] for p in results[treatment]['peaks'] if p['kal_source'] == source)
+            count = sum(1 for p in results[treatment]['filtered_peaks'] if p['kal_source'] == source)
+            area_sum = sum(p['area'] for p in results[treatment]['filtered_peaks'] if p['kal_source'] == source)
             ws6.cell(row=row, column=3, value=count)
             ws6.cell(row=row, column=4, value=area_sum)
             ws6.cell(row=row, column=5, value=round(st['kal_source'].get(source, 0), 2))
@@ -1265,7 +1342,7 @@ def write_excel(results, stats, output_path):
 
         ws6.cell(row=row, column=1, value=treatment)
         ws6.cell(row=row, column=2, value='合计')
-        ws6.cell(row=row, column=3, value=len(results[treatment]['peaks']))
+        ws6.cell(row=row, column=3, value=len(results[treatment]['filtered_peaks']))
         ws6.cell(row=row, column=4, value=st['total_area'])
         ws6.cell(row=row, column=5, value=100.0)
         for col in range(1, len(headers6) + 1):
@@ -1390,8 +1467,9 @@ def main():
     print("=" * 60)
     for treatment, st in stats.items():
         print(f"\n{treatment}:")
-        print(f"  Total peaks: {len(results[treatment]['peaks'])}")
-        print(f"  Total area: {st['total_area']:,.0f}")
+        d = results[treatment]
+        print(f"  MC peaks: {d.get('mc_total_peaks','?')} | NIST searched: {d.get('nist_searched_peaks','?')} | SI>=80: {d.get('si80_peaks','?')}")
+        print(f"  Total area (SI>=80): {st['total_area']:,.0f}")
         for source in ['plant', 'microbial', 'mixed']:
             val = st['chen_source'].get(source, 0)
             print(f"  {source}: {val:.2f}%")
