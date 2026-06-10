@@ -89,6 +89,16 @@ def compute_nosc_and_dg(atoms):
     return round(nosc, 6), round(dg_cox, 3)
 
 
+def compute_hc_oc(atoms):
+    """Compute H/C and O/C atomic ratios from atom counts."""
+    C = atoms.get('C', 0)
+    H = atoms.get('H', 0)
+    O = atoms.get('O', 0)
+    if C == 0:
+        return None, None
+    return round(H / C, 4), round(O / C, 4)
+
+
 # ============================================================================
 # 1.5 NIST Chemistry WebBook Online Query
 # ============================================================================
@@ -399,6 +409,7 @@ def parse_nist_txt(filepath):
         if nist['formula']:
             atoms = parse_molecular_formula(nist['formula'])
         nosc, dg = compute_nosc_and_dg(atoms)
+        hc, oc = compute_hc_oc(atoms)
 
         peak_entry = {
             'peak_num': spectrum_num,
@@ -411,7 +422,9 @@ def parse_nist_txt(filepath):
             'mol_weight': nist['mol_weight'],
             'atoms': atoms,
             'nosc': nosc,
-            'dg_cox': dg
+            'dg_cox': dg,
+            'hc': hc,
+            'oc': oc
         }
 
         all_peaks.append(peak_entry)
@@ -1104,7 +1117,8 @@ def write_excel(results, stats, output_path):
     ws1.title = '全化合物汇总'
     headers1 = ['处理', '峰号', '保留时间_min', '峰面积', 'SI', 'CAS',
                 '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
-                '分子量', 'Chen化学类别', 'Chen来源归属', 'Kallenbach化学类别', 'Kallenbach来源归属',
+                'H/C', 'O/C', '分子量',
+                'Chen化学类别', 'Chen来源归属', 'Kallenbach化学类别', 'Kallenbach来源归属',
                 'NOSC', 'ΔG_COX', 'SI>=80']
     for col, h in enumerate(headers1, 1):
         ws1.cell(row=1, column=col, value=h)
@@ -1134,14 +1148,16 @@ def write_excel(results, stats, output_path):
             ws1.cell(row=row, column=13, value=atoms.get('P', '') if atoms.get('P') else '')
             ws1.cell(row=row, column=14, value=atoms.get('S', '') if atoms.get('S') else '')
             ws1.cell(row=row, column=15, value=other_elem)
-            ws1.cell(row=row, column=16, value=p.get('mol_weight', ''))
-            ws1.cell(row=row, column=17, value=p.get('chen_group', ''))
-            ws1.cell(row=row, column=18, value=p.get('chen_source', ''))
-            ws1.cell(row=row, column=19, value=p.get('kal_group', ''))
-            ws1.cell(row=row, column=20, value=p.get('kal_source', ''))
-            ws1.cell(row=row, column=21, value=p.get('nosc', ''))
-            ws1.cell(row=row, column=22, value=p.get('dg_cox', ''))
-            ws1.cell(row=row, column=23, value=passed)
+            ws1.cell(row=row, column=16, value=p.get('hc', ''))
+            ws1.cell(row=row, column=17, value=p.get('oc', ''))
+            ws1.cell(row=row, column=18, value=p.get('mol_weight', ''))
+            ws1.cell(row=row, column=19, value=p.get('chen_group', ''))
+            ws1.cell(row=row, column=20, value=p.get('chen_source', ''))
+            ws1.cell(row=row, column=21, value=p.get('kal_group', ''))
+            ws1.cell(row=row, column=22, value=p.get('kal_source', ''))
+            ws1.cell(row=row, column=23, value=p.get('nosc', ''))
+            ws1.cell(row=row, column=24, value=p.get('dg_cox', ''))
+            ws1.cell(row=row, column=25, value=passed)
             for col in range(1, len(headers1) + 1):
                 ws1.cell(row=row, column=col).font = cell_font
                 ws1.cell(row=row, column=col).border = thin_border
@@ -1185,7 +1201,7 @@ def write_excel(results, stats, output_path):
     ws2 = wb.create_sheet('Chen_分类详细')
     headers2 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
                 '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
-                '分子量', 'InChIKey',
+                'H/C', 'O/C', '分子量', 'InChIKey',
                 'Chen化学类别', 'Chen来源归属', 'NOSC', 'ΔG_COX']
     for col, h in enumerate(headers2, 1):
         ws2.cell(row=1, column=col, value=h)
@@ -1214,12 +1230,14 @@ def write_excel(results, stats, output_path):
             ws2.cell(row=row, column=14, value=atoms.get('P', '') if atoms.get('P') else '')
             ws2.cell(row=row, column=15, value=atoms.get('S', '') if atoms.get('S') else '')
             ws2.cell(row=row, column=16, value=other_elem)
-            ws2.cell(row=row, column=17, value=p.get('mol_weight', ''))
-            ws2.cell(row=row, column=18, value=p.get('inchikey', ''))
-            ws2.cell(row=row, column=19, value=p['chen_group'])
-            ws2.cell(row=row, column=20, value=p['chen_source'])
-            ws2.cell(row=row, column=21, value=p.get('nosc', ''))
-            ws2.cell(row=row, column=22, value=p.get('dg_cox', ''))
+            ws2.cell(row=row, column=17, value=p.get('hc', ''))
+            ws2.cell(row=row, column=18, value=p.get('oc', ''))
+            ws2.cell(row=row, column=19, value=p.get('mol_weight', ''))
+            ws2.cell(row=row, column=20, value=p.get('inchikey', ''))
+            ws2.cell(row=row, column=21, value=p['chen_group'])
+            ws2.cell(row=row, column=22, value=p['chen_source'])
+            ws2.cell(row=row, column=23, value=p.get('nosc', ''))
+            ws2.cell(row=row, column=24, value=p.get('dg_cox', ''))
             for col in range(1, len(headers2) + 1):
                 ws2.cell(row=row, column=col).font = cell_font
                 ws2.cell(row=row, column=col).border = thin_border
@@ -1280,7 +1298,7 @@ def write_excel(results, stats, output_path):
     ws5 = wb.create_sheet('Kallenbach_分类详细')
     headers5 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
                 '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
-                '分子量', 'InChIKey',
+                'H/C', 'O/C', '分子量', 'InChIKey',
                 'Kallenbach化学类别', 'Kallenbach来源归属']
     for col, h in enumerate(headers5, 1):
         ws5.cell(row=1, column=col, value=h)
@@ -1309,10 +1327,12 @@ def write_excel(results, stats, output_path):
             ws5.cell(row=row, column=14, value=atoms.get('P', '') if atoms.get('P') else '')
             ws5.cell(row=row, column=15, value=atoms.get('S', '') if atoms.get('S') else '')
             ws5.cell(row=row, column=16, value=other_elem)
-            ws5.cell(row=row, column=17, value=p.get('mol_weight', ''))
-            ws5.cell(row=row, column=18, value=p.get('inchikey', ''))
-            ws5.cell(row=row, column=19, value=p['kal_group'])
-            ws5.cell(row=row, column=20, value=p['kal_source'])
+            ws5.cell(row=row, column=17, value=p.get('hc', ''))
+            ws5.cell(row=row, column=18, value=p.get('oc', ''))
+            ws5.cell(row=row, column=19, value=p.get('mol_weight', ''))
+            ws5.cell(row=row, column=20, value=p.get('inchikey', ''))
+            ws5.cell(row=row, column=21, value=p['kal_group'])
+            ws5.cell(row=row, column=22, value=p['kal_source'])
             for col in range(1, len(headers5) + 1):
                 ws5.cell(row=row, column=col).font = cell_font
                 ws5.cell(row=row, column=col).border = thin_border
@@ -1369,7 +1389,99 @@ def write_excel(results, stats, output_path):
             ws7.cell(row=row, column=col).border = thin_border
         row += 1
 
-    # --- Sheet 8: 说明_QC ---
+    # --- Sheet 8: 元素比统计 (H/C, O/C by chemical class) ---
+    ws8 = wb.create_sheet('元素比统计_Chen')
+    headers8 = ['处理', '化学类别', '化合物数', '峰面积合计', '面积加权H/C', '面积加权O/C',
+                '算术平均H/C', '算术平均O/C', 'H/C最小值', 'H/C最大值', 'O/C最小值', 'O/C最大值']
+    for col, h in enumerate(headers8, 1):
+        ws8.cell(row=1, column=col, value=h)
+    style_header(ws8, 1, len(headers8))
+
+    row = 2
+    for treatment, data in results.items():
+        peaks = data['filtered_peaks']
+        class_data = defaultdict(list)
+        for p in peaks:
+            if p.get('hc') is not None and p.get('oc') is not None:
+                class_data[p['chen_group']].append(p)
+
+        for chen_class in sorted(class_data.keys()):
+            cpeaks = class_data[chen_class]
+            total_area = sum(p['area'] for p in cpeaks)
+            if total_area == 0:
+                continue
+            # Area-weighted H/C and O/C
+            w_hc = sum(p['hc'] * p['area'] for p in cpeaks) / total_area
+            w_oc = sum(p['oc'] * p['area'] for p in cpeaks) / total_area
+            # Arithmetic mean
+            a_hc = sum(p['hc'] for p in cpeaks) / len(cpeaks)
+            a_oc = sum(p['oc'] for p in cpeaks) / len(cpeaks)
+            hc_vals = [p['hc'] for p in cpeaks]
+            oc_vals = [p['oc'] for p in cpeaks]
+
+            ws8.cell(row=row, column=1, value=treatment)
+            ws8.cell(row=row, column=2, value=chen_class)
+            ws8.cell(row=row, column=3, value=len(cpeaks))
+            ws8.cell(row=row, column=4, value=total_area)
+            ws8.cell(row=row, column=5, value=round(w_hc, 4))
+            ws8.cell(row=row, column=6, value=round(w_oc, 4))
+            ws8.cell(row=row, column=7, value=round(a_hc, 4))
+            ws8.cell(row=row, column=8, value=round(a_oc, 4))
+            ws8.cell(row=row, column=9, value=round(min(hc_vals), 4))
+            ws8.cell(row=row, column=10, value=round(max(hc_vals), 4))
+            ws8.cell(row=row, column=11, value=round(min(oc_vals), 4))
+            ws8.cell(row=row, column=12, value=round(max(oc_vals), 4))
+            for col in range(1, len(headers8) + 1):
+                ws8.cell(row=row, column=col).font = cell_font
+                ws8.cell(row=row, column=col).border = thin_border
+            row += 1
+
+    # --- Sheet 9: 元素比统计_Kallenbach ---
+    ws9 = wb.create_sheet('元素比统计_Kallenbach')
+    headers9 = ['处理', '化学类别', '化合物数', '峰面积合计', '面积加权H/C', '面积加权O/C',
+                '算术平均H/C', '算术平均O/C', 'H/C最小值', 'H/C最大值', 'O/C最小值', 'O/C最大值']
+    for col, h in enumerate(headers9, 1):
+        ws9.cell(row=1, column=col, value=h)
+    style_header(ws9, 1, len(headers9))
+
+    row = 2
+    for treatment, data in results.items():
+        peaks = data['filtered_peaks']
+        class_data = defaultdict(list)
+        for p in peaks:
+            if p.get('hc') is not None and p.get('oc') is not None:
+                class_data[p['kal_group']].append(p)
+
+        for kal_class in sorted(class_data.keys()):
+            cpeaks = class_data[kal_class]
+            total_area = sum(p['area'] for p in cpeaks)
+            if total_area == 0:
+                continue
+            w_hc = sum(p['hc'] * p['area'] for p in cpeaks) / total_area
+            w_oc = sum(p['oc'] * p['area'] for p in cpeaks) / total_area
+            a_hc = sum(p['hc'] for p in cpeaks) / len(cpeaks)
+            a_oc = sum(p['oc'] for p in cpeaks) / len(cpeaks)
+            hc_vals = [p['hc'] for p in cpeaks]
+            oc_vals = [p['oc'] for p in cpeaks]
+
+            ws9.cell(row=row, column=1, value=treatment)
+            ws9.cell(row=row, column=2, value=kal_class)
+            ws9.cell(row=row, column=3, value=len(cpeaks))
+            ws9.cell(row=row, column=4, value=total_area)
+            ws9.cell(row=row, column=5, value=round(w_hc, 4))
+            ws9.cell(row=row, column=6, value=round(w_oc, 4))
+            ws9.cell(row=row, column=7, value=round(a_hc, 4))
+            ws9.cell(row=row, column=8, value=round(a_oc, 4))
+            ws9.cell(row=row, column=9, value=round(min(hc_vals), 4))
+            ws9.cell(row=row, column=10, value=round(max(hc_vals), 4))
+            ws9.cell(row=row, column=11, value=round(min(oc_vals), 4))
+            ws9.cell(row=row, column=12, value=round(max(oc_vals), 4))
+            for col in range(1, len(headers9) + 1):
+                ws9.cell(row=row, column=col).font = cell_font
+                ws9.cell(row=row, column=col).border = thin_border
+            row += 1
+
+    # --- Sheet 10: 说明_QC ---
     ws8 = wb.create_sheet('说明_QC')
     info = [
         ['Py-GC-MS 批量分析报告'],
