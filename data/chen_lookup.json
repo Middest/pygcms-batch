@@ -1,0 +1,1146 @@
+{
+  "Methyl 2-hydroxy-2-methoxyacetate": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "O-Butylisourea": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "Acetaldehyde": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Methylamine, N,N-dimethyl-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "Butanal, 3-methyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1-Heptene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "3-Hexanone": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Butanenitrile, 3-methyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "1H-Pyrrole, 1-methyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Acetonitrile, (dimethylamino)-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Toluene": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1-Octene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Hexane, 2,3,4-trimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Methanediamine, N,N,N',N'-tetramethyl-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "1-Hydroxymethyl-2-methyl-1-cyclohexene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Ethylbenzene": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "p-Xylene": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1-Nonene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1-Chloroundecane": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "1,2,4-triazine, hexahydro-3,5-dione": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "Decanal": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1,3,5-Triazine, hexahydro-1,3,5-trimethyl-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "1-Octanol, 2-methyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Benzene, n-butyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1-Undecene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Undecane": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "N-Methylglycine": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "1-Pentadecene, 2-methyl-": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "1-Dodecanol": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Dodecane": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "5-Tetradecene, (E)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Methenamine": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "1-Tetradecene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Tridecane": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Cyclohexane, 2-butyl-1,1,3-trimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1-Dodecanol, 3,7,11-trimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Decane, 2,3,5,8-tetramethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1,9-Tetradecadiene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Tetradecane": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Pentadecafluorooctanoic acid, tridecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "trans-2-Dodecen-1-ol, pentafluoropropionate": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "1-Pentadecene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Pentadecane": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1,7-Hexadecadiene": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Hexadecane": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Cyclohexadecane": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "n-Pentadecanol": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Heptadecane": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "2-Hexadecene, 3,7,11,15-tetramethyl-, [R-[R*,R*-(E)]]-": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "1-Nonadecene": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Octadecane": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "n-Heptadecanol-1": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Pentadecanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Neophytadiene": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "2-Pentadecanone, 6,10,14-trimethyl-": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Benzene, (2,3-dimethyldecyl)-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "2-Pentadecylfuran": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "Hexadecanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Hexadecanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Hexadecanoic acid, 14-methyl-, methyl ester": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "9-Octadecenenitrile, (Z)-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Methyl stearate": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Heptafluorobutyric acid, n-octadecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Methyl 18-methylnonadecanoate": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Heneicosyl trifluoroacetate": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Heneicosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "1-Decanol, 2-octyl-": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "(Z)-Docos-9-enenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Docosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Tetratriacontyl heptafluorobutyrate": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Tricosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "1-Decanol, 2-hexyl-": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Tetracosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Octatriacontyl trifluoroacetate": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Pentacosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Carbonic acid, octadecyl vinyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Hexacosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Octacosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Acetic acid, 5-hydroxy-pent-3-ynyl ester": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "l-Alanine ethylamide, (S)-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "Furan, 2,5-dimethyl-": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "Hexane, 1-chloro-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Cyclopentane, 1-ethyl-2-methyl-, cis-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Dimethylamine, N-(diisopropylphosphino)methyl-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "Benzene, 1,3-dimethyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "2,2-Dimethylpropionic acid, undec-10-enyl ester": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Benzenepropanoyl bromide": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "2-Nonen-1-ol, (Z)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Benzene, propyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, 1-ethyl-2-methyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, 1-ethyl-3-methyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1-Octanol, 2-butyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "11,14-Eicosadienoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Benzene, 1,4-diethyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Indane": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, 1-methyl-2-propyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "5-Undecene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "3-Undecene, 10-methyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1-Dodecene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Naphthalene": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, hexyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1-Tridecene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Naphthalene, 2-methyl-": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "10-Methylnonadecane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "3,5-Dimethyldodecane": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "2-Methyl-E-7-hexadecene": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Dodecane, 2-methyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Benzene, eicosyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Undecanoic acid, 10-methyl-, methyl ester": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "2,4-Di-tert-butylphenol": {
+    "class": "Phenolics",
+    "source": "plant"
+  },
+  "Pentadecane, 3-methyl-": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Dichloroacetic acid, 4-hexadecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Cyclopentane, undecyl-": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "1-Tetradecanol": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Heptadecane, 3-methyl-": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "1-Heptadecene": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "1-Octadecene": {
+    "class": "Lipids",
+    "source": "mixed"
+  },
+  "Heptadecanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "9-Octadecenoic acid (Z)-, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Octadecanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Pentatriacontane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Tetratetracontane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Carbonic acid, eicosyl vinyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Butanoic acid, 4-(dimethylamino)-3-hydroxy-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "Decane, 1-chloro-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "N-Allyl-N,N-dimethylamine": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "3,4-DIMETHYL-1H-PYRROLE": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "3-Octen-1-ol, (Z)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "o-Xylene": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Bicyclo[2.1.1]hex-2-ene, 2-ethenyl-": {
+    "class": "Unspecified/complex",
+    "source": "mixed"
+  },
+  "Anisole": {
+    "class": "Lignin derivatives",
+    "source": "plant"
+  },
+  "1-Tetradecyne": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1-Decene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Decane": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Benzene, 1-ethenyl-2-methyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzonitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "3-Methylbenzyl alcohol": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "2-Vinylfuran": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "Benzene, 1-methyl-4-propyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "p-Cresol": {
+    "class": "Phenolics",
+    "source": "plant"
+  },
+  "Benzene, 1-ethenyl-4-methoxy-": {
+    "class": "Lignin derivatives",
+    "source": "plant"
+  },
+  "Phenol, 3-ethyl-": {
+    "class": "Phenolics",
+    "source": "plant"
+  },
+  "Naphthalene, 1,2-dihydro-6-methyl-": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "Eicosane, 10-methyl-": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "2-Bromo dodecane": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Biphenyl": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, octyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Diphenylmethane": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, nonyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Fluorene": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "Tridecane, 1-iodo-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "9H-Fluorene, 9-methylene-": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "1-Tricosene": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Hexacosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Benzene, pentadecyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Heneicosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Benzene, hexadecyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Eicosanoic acid, methyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Dotriacontane, 2-methyl-": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Formic acid, ethenyl ester": {
+    "class": "Unspecified/complex",
+    "source": "mixed"
+  },
+  "Glutaraldehyde": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "4-Cyclopentene-1,3-diol, trans-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Propane, 2-nitro-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "1H-Pyrazole, 4,5-dihydro-3-methyl-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "1H-Pyrrole, 2,3-dimethyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "3-Octen-1-ol": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Acethydrazide, 2-benzyloxycarbonylamino-N2-tert-butoxycarbonyl-": {
+    "class": "Other N-bearing",
+    "source": "microbial"
+  },
+  "3-Tridecene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Benzene, 1,2,4-trimethyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "2,3,4-Trimethylpyrrole": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Dodecane, 4,6-dimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Benzene, 1,2-diethyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, 1-methoxy-4-methyl-": {
+    "class": "Lignin derivatives",
+    "source": "plant"
+  },
+  "(1-Benzyl-cyclopropyl)-methanol": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, (2-methyl-1-butenyl)-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzofuran, 4,7-dimethyl-": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "Naphthalene, 1-methyl-": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "1,1'-Biphenyl, 2-methyl-": {
+    "class": "Polycyclic aromatics",
+    "source": "microbial"
+  },
+  "Nonadecane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Trichloroacetic acid, hexadecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Benzene, decyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Acetic acid, 3,7,11,15-tetramethyl-hexadecyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Nonyl tetradecyl ether": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Pentadecafluorooctanoic acid, hexadecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Pentadecanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "1-Tetracosene": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Eicosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Carbonic acid, decyl undecyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Octan-2-yl palmitate": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "3-Oxabicyclo[3.2.0]heptane-2,4-dione, cis-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Butanenitrile, 2-methyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2,6,10-Trimethyltridecane": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Phenol, 4,6-di(1,1-dimethylethyl)-2-methyl-": {
+    "class": "Phenolics",
+    "source": "plant"
+  },
+  "1-Hexanol, 5-methyl-2-(1-methylethyl)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Decane, 1-iodo-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Octadecane, 1-iodo-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Hexadecane, 2-methyl-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Hexadecane, 2,6,10,14-tetramethyl-": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "2-Methyltetracosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Carbonic acid, decyl dodecyl ester": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Tetracosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "1-Octadecanol, methyl ether": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "2-Pentanamine, 2,4,4-trimethyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "1-Methyldodecylamine": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Tetramethylammonium acetate": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2-Octene, 2,6-dimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Ethylenimine": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2-Octene, (Z)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Ethanamine, N-ethyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Pyridine, 2-methyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Furfural": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "Acrylic acid, 5,7-octadien-1-yl ester": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1H-Pyrrole, 2-methyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "1,3-Cyclopentadiene, 5-(1-methylethylidene)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Hexanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "1,3,5,7-Cyclooctatetraene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "2-Methyl-2-octene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "2-Cyclopenten-1-one, 2-methyl-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "2-Nonene, (E)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1H-Pyrrole, 2,5-dimethyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2-Cyclopenten-1-one, 2,3-dimethyl-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "6-Heptene-1-nitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Heptanonitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Tricyclo[3.1.0.0(2,4)]hex-3-ene-3-carbonitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Carbamic acid, methyl-, phenyl ester": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2-Decene, (E)-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Cyclopropane, 1-ethyl-2-heptyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "o-Cymene": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Benzene, 1-propenyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1H-Indene, 1-chloro-2,3-dihydro-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Benzene, 1-methyl-3-propyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1,3-Heptadiene, 2,3-dimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Phenol, 2-methyl-": {
+    "class": "Phenolics",
+    "source": "plant"
+  },
+  "1-Undecanol": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Cyclopentane, hexyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Benzofuran, 2-methyl-": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "Benzene, 1,2,3,4-tetramethyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1H-Pyrrole, 2,3,4,5-tetramethyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Benzyl nitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2-Methylindene": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Pyrrolidine, 1-(1-cyclopenten-1-yl)-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "(S,E)-3-Methyl-4-phenylbut-3-en-2-yl acetate": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Decanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Benzene, heptyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Naphthalene, 1,2,3,4-tetrahydro-1-methyl-8-(1-methylethyl)-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "1,2,3-Trimethylindene": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Carbonochloridic acid, decyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Naphthalene, 1,5-dimethyl-": {
+    "class": "Monocyclic aromatics",
+    "source": "microbial"
+  },
+  "Dodecanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Heptadecafluorononanoic acid, tridecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Methyl tetradecanoate": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Tetradecanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Tridecanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2- Bromopropionic acid, pentadecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "7-Hexadecenal, (Z)-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "9-Octadecynenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "13-Docosenamide, (Z)-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "2-Methylhexacosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Arachidamide, N-methyl-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "N,N-Dimethylpalmitamide": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Dichloroacetic acid, heptadecyl ester": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "n-Heptadecylcyclohexane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Tricosanenitrile": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Nonacosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "3-Cyclopentene-1,2-diol, cis-": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "Furan, 2-methyl-": {
+    "class": "Polysaccharides / carbohydrate-derived",
+    "source": "plant"
+  },
+  "2-(Dimethylamino)-N-(3-nitrophenyl)acetamide": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "Butane, 1-isocyanato-": {
+    "class": "Amino N-bearing (nitrile/pyridine/pyrrole)",
+    "source": "microbial"
+  },
+  "1-Fluorooctane": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "2-Hexene, 4,4,5-trimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "2,4-Dimethyl-1-heptene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "7,7-Diethylheptadecane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Squalane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "2-Isopropyl-5-methyl-1-heptanol": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "1-Hexadecanol, 3,7,11,15-tetramethyl-": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Docosane, 1-iodo-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Octacosane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "2-Methyltriacontane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "3-Heptene": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "Silane, trichlorodocosyl-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Tetradecane, 1-chloro-": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "Dodecane, 2,6,11-trimethyl-": {
+    "class": "Lipids",
+    "source": "microbial"
+  },
+  "3-Ethyl-2,6,10-trimethylundecane": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "1-Hexadecanol": {
+    "class": "Unspecified/halogen_or_complex",
+    "source": "mixed"
+  },
+  "5,5-Diethylheptadecane": {
+    "class": "Lipids",
+    "source": "plant"
+  },
+  "Eicosyl methyl ether": {
+    "class": "Lipids",
+    "source": "plant"
+  }
+}

@@ -19,6 +19,10 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+# Path to the built-in lookup table (relative to this script)
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_DEFAULT_LOOKUP = os.path.join(_SCRIPT_DIR, '..', 'data', 'chen_lookup.json')
+
 
 # ============================================================================
 # 1. NIST TXT PARSER
@@ -83,103 +87,128 @@ def compute_nosc_and_dg(atoms):
 def parse_nist_txt(filepath):
     """
     Parse a NIST search export TXT file.
-    Returns list of dicts with peak data from [MC Peak Table] section.
+    Extracts data from BOTH [MC Peak Table] (for TIC area) and
+    [MS Similarity Search Results for Spectrum Process Table] (for SI, CAS, formula).
 
-    The TXT format has:
-    [Header] section with metadata
-    [File Information]
-    [Sample Information]
-    [Original Files]
-    [MC Peak Table] - the key section with peak data
-    [MS Spectrum] sections (ignored)
+    Returns list of dicts, each containing merged peak data for Hit#1 entries with SI>=80.
     """
-    peaks = []
-
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read()
 
-    # Find [MC Peak Table] section
+    # === Step 1: Parse MS Similarity Search Results (Hit #1 only) ===
+    # This is the authoritative source for SI, CAS, molecular formula
+    nist_data = {}  # spectrum_num -> {si, cas, name, formula, mol_weight}
+
+    sim_match = re.search(
+        r'\[MS Similarity Search Results for Spectrum Process Table\](.*?)(?=\n\[MS Chromatogram\])',
+        content, re.DOTALL
+    )
+    if sim_match:
+        sim_text = sim_match.group(1)
+        lines = sim_text.strip().split('\n')
+        in_data = False
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith('Spectrum#'):
+                in_data = True
+                continue
+            if in_data and line.startswith('['):
+                break
+            if in_data:
+                parts = line.split('\t')
+                if len(parts) >= 7:
+                    try:
+                        spectrum_num = int(parts[0])
+                        hit_num = int(parts[1])
+                        si = int(parts[2]) if parts[2] else 0
+                        cas = parts[3].strip() if len(parts) > 3 else ''
+                        name = parts[4].strip() if len(parts) > 4 else ''
+                        mol_weight = parts[5].strip() if len(parts) > 5 else ''
+                        formula = parts[6].strip() if len(parts) > 6 else ''
+
+                        # Only keep Hit #1 (the best match) for each spectrum
+                        if hit_num == 1 and spectrum_num not in nist_data:
+                            # Clean name: remove $$ and trailing content
+                            clean_name = name.split('$$')[0].strip()
+                            nist_data[spectrum_num] = {
+                                'si': si,
+                                'cas': cas,
+                                'name': clean_name,
+                                'formula': formula,
+                                'mol_weight': mol_weight
+                            }
+                    except (ValueError, IndexError):
+                        pass
+
+    # === Step 2: Parse MC Peak Table for TIC areas ===
+    # Match with NIST data by peak number (Peak# in MC = Spectrum# in MS results)
+    mc_peaks = {}  # peak_num -> area, ret_time
+
     mc_match = re.search(r'\[MC Peak Table\](.*?)(?=\n\[)', content, re.DOTALL)
     if not mc_match:
-        # Try to find it without the closing bracket
         mc_match = re.search(r'\[MC Peak Table\](.*)', content, re.DOTALL)
-    if not mc_match:
-        return peaks
+    if mc_match:
+        mc_text = mc_match.group(1)
+        lines = mc_text.strip().split('\n')
+        in_data = False
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith('Peak#'):
+                in_data = True
+                continue
+            if in_data and line.startswith('['):
+                break
+            if in_data:
+                parts = line.split('\t')
+                if len(parts) >= 7:
+                    try:
+                        peak_num = int(parts[0])
+                        ret_time = float(parts[1])
+                        # Area is at index 5 (0-based) = 6th column
+                        area = float(parts[5]) if parts[5] else 0
+                        mc_peaks[peak_num] = {
+                            'ret_time': ret_time,
+                            'area': area
+                        }
+                    except (ValueError, IndexError):
+                        pass
 
-    mc_text = mc_match.group(1)
-    lines = mc_text.strip().split('\n')
-
-    in_data = False
-    for line in lines:
-        line = line.strip()
-        if not line:
+    # === Step 3: Merge NIST data with MC Peak Table data ===
+    # Only keep peaks that have NIST Hit#1 with SI >= 80
+    peaks = []
+    for spectrum_num, nist in nist_data.items():
+        if nist['si'] < 80:
             continue
-        if line.startswith('Peak#'):
-            in_data = True
-            continue
-        if in_data and line.startswith('['):
-            break
-        if in_data:
-            parts = line.split('\t')
-            if len(parts) >= 11:
-                try:
-                    peak_num = int(parts[0])
-                    ret_time = float(parts[1])
-                    area = float(parts[6])
-                    height = float(parts[7]) if parts[7] else 0
-                    name = parts[10].strip() if len(parts) > 10 else ''
 
-                    peaks.append({
-                        'peak_num': peak_num,
-                        'ret_time': ret_time,
-                        'area': area,
-                        'height': height,
-                        'name': name,
-                        'raw_line': line
-                    })
-                except (ValueError, IndexError):
-                    pass
+        mc = mc_peaks.get(spectrum_num, {})
+        area = mc.get('area', 0)
+        ret_time = mc.get('ret_time', 0)
+
+        # Parse molecular formula
+        atoms = {}
+        if nist['formula']:
+            atoms = parse_molecular_formula(nist['formula'])
+        nosc, dg = compute_nosc_and_dg(atoms)
+
+        peaks.append({
+            'peak_num': spectrum_num,
+            'ret_time': ret_time,
+            'area': area,
+            'name': nist['name'],
+            'si': nist['si'],
+            'cas': nist['cas'],
+            'formula': nist['formula'],
+            'mol_weight': nist['mol_weight'],
+            'atoms': atoms,
+            'nosc': nosc,
+            'dg_cox': dg
+        })
 
     return peaks
-
-
-def find_nist_match_details(filepath, peak_name_to_match):
-    """
-    Extract SI, CAS, molecular formula from NIST match section in TXT.
-    Searches [Hit] sections for each peak's top NIST hit.
-    """
-    matches = {}
-
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-        content = f.read()
-
-    # Find all [Hit] sections
-    hit_blocks = re.findall(r'\[Hit\](.*?)(?=\[Hit\]|\[MS Spectrum\]|$)', content, re.DOTALL)
-
-    for block in hit_blocks:
-        si_match = re.search(r'SI\s*[:=]?\s*(\d+)', block, re.IGNORECASE)
-        name_match = re.search(r'Name\s*[:=]?\s*(.+)', block, re.IGNORECASE)
-        cas_match = re.search(r'CAS\s*[:=]?\s*([\d\-]+)', block, re.IGNORECASE)
-        formula_match = re.search(r'Mol(?:ecular)?\s*Formula\s*[:=]?\s*([A-Za-z0-9]+)', block, re.IGNORECASE)
-        mw_match = re.search(r'Mol(?:ecular)?\s*Weight\s*[:=]?\s*([\d.]+)', block, re.IGNORECASE)
-
-        if name_match and si_match:
-            name = name_match.group(1).strip()
-            si = int(si_match.group(1))
-            cas = cas_match.group(1).strip() if cas_match else ''
-            formula = formula_match.group(1).strip() if formula_match else ''
-            mw = float(mw_match.group(1)) if mw_match else 0
-
-            if name not in matches or si > matches[name]['si']:
-                matches[name] = {
-                    'name': name,
-                    'si': si,
-                    'cas': cas,
-                    'formula': formula,
-                    'mol_weight': mw
-                }
-
-    return matches
 
 
 # ============================================================================
@@ -528,39 +557,139 @@ KALLENBACH_CLASS_RULES = {
 }
 
 
-def classify_compound_chen(name):
+# Global lookup cache (loaded at first use)
+_chen_lookup = None
+
+
+def _load_lookup(lookup_path=None):
+    """Load Chen classification lookup table from JSON."""
+    global _chen_lookup
+    if _chen_lookup is not None:
+        return _chen_lookup
+
+    if lookup_path is None:
+        lookup_path = _DEFAULT_LOOKUP
+
+    if os.path.exists(lookup_path):
+        with open(lookup_path, 'r', encoding='utf-8') as f:
+            _chen_lookup = json.load(f)
+    else:
+        _chen_lookup = {}
+
+    return _chen_lookup
+
+
+def _normalize_name(name):
+    """Normalize compound name for lookup matching."""
+    # Remove trailing/leading whitespace, collapse internal spaces
+    name = ' '.join(name.split())
+    # Remove common NIST suffixes ($$, etc.)
+    name = re.sub(r'\s*\$\$.*$', '', name)
+    return name.strip()
+
+
+def _lookup_match(name, lookup):
+    """Try to match a compound name against the lookup table."""
+    name_clean = _normalize_name(name)
+
+    # 1. Exact match
+    if name_clean in lookup:
+        return lookup[name_clean]
+
+    # 2. Case-insensitive match
+    name_lower = name_clean.lower()
+    for k, v in lookup.items():
+        if k.lower() == name_lower:
+            return v
+
+    # 3. Partial match (first 40 chars match, handles NIST name variants)
+    name_prefix = name_lower[:40]
+    for k, v in lookup.items():
+        if k.lower()[:40] == name_prefix:
+            return v
+
+    # 4. Substring match (name contains lookup key or vice versa)
+    for k, v in lookup.items():
+        kl = k.lower()
+        if len(kl) > 10 and (kl in name_lower or name_lower in kl):
+            return v
+
+    return None
+
+
+def classify_compound_chen(name, lookup=None):
     """
     Classify a compound by Chen 2023 scheme.
+    Uses exact lookup table first, falls back to keyword matching.
     Returns (chemical_group, source_category)
     """
-    name_lower = name.lower().strip()
+    if lookup is None:
+        lookup = _load_lookup()
 
-    # Check each chemical group
+    # Step 1: Try exact lookup
+    match = _lookup_match(name, lookup)
+    if match:
+        chen_class = match.get('class', '')
+        chen_source = match.get('source', 'mixed')
+        # Map POC-style class names to internal keys
+        class_map = {
+            'Lipids': 'lipids',
+            'Other N-bearing': 'other_N_bearing',
+            'Amino N-bearing (nitrile/pyridine/pyrrole)': 'amino_N_bearing',
+            'Monocyclic aromatics': 'monocyclic_aromatics',
+            'Unspecified/halogen_or_complex': 'unspecified',
+            'Polysaccharides / carbohydrate-derived': 'polysaccharides',
+            'Polycyclic aromatics': 'polycyclic_aromatics',
+            'Phenolics': 'phenolics',
+            'Unspecified/complex': 'unspecified',
+            'Lignin derivatives': 'lignins',
+        }
+        chen_group = class_map.get(chen_class, 'unspecified')
+        return (chen_group, chen_source)
+
+    # Step 2: Fall back to keyword matching
+    name_lower = name.lower().strip()
     for group, rules in CHEN_CLASS_RULES.items():
         for kw in rules['keywords']:
             if kw.lower() in name_lower:
                 return (group, rules['source'])
 
-    # Fallback: try to infer from chemical name patterns
-    if any(x in name_lower for x in ['nitrile', 'pyridine', 'pyrrole', 'amine', 'amino']):
-        return ('amino_N_bearing', 'microbial')
-    if any(x in name_lower for x in ['benzene', 'toluene', 'aromatic', 'naphthalene']):
-        return ('monocyclic_aromatics', 'microbial')
-    if any(x in name_lower for x in ['phenol', 'cresol', 'vanillin', 'guaiacol']):
-        return ('phenolics', 'plant')
-    if any(x in name_lower for x in ['acid', 'ester', 'alkane', 'alkene']):
-        return ('lipids', 'mixed')
-
     return ('unspecified', 'mixed')
 
 
-def classify_compound_kallenbach(name):
+def classify_compound_kallenbach(name, lookup=None):
     """
     Classify a compound by Kallenbach 2016 scheme.
+    Uses exact lookup table first, falls back to keyword matching.
     Returns (chemical_group, source_category)
     """
-    name_lower = name.lower().strip()
+    if lookup is None:
+        lookup = _load_lookup()
 
+    # Step 1: Try exact lookup
+    match = _lookup_match(name, lookup)
+    if match:
+        chen_class = match.get('class', '')
+        chen_source = match.get('source', 'mixed')
+        # Map Chen classes to Kallenbach classes
+        kal_map = {
+            'Lipids': ('lipids', chen_source),
+            'Other N-bearing': ('non_protein_N', chen_source),
+            'Amino N-bearing (nitrile/pyridine/pyrrole)': ('proteins', chen_source),
+            'Monocyclic aromatics': ('aromatics', chen_source),
+            'Polycyclic aromatics': ('aromatics', chen_source),
+            'Unspecified/halogen_or_complex': ('unspecified', 'mixed'),
+            'Polysaccharides / carbohydrate-derived': ('polysaccharides', chen_source),
+            'Phenolics': ('phenolics', chen_source),
+            'Unspecified/complex': ('unspecified', 'mixed'),
+            'Lignin derivatives': ('lignin_derivatives', chen_source),
+        }
+        if chen_class in kal_map:
+            return kal_map[chen_class]
+        return ('unspecified', 'mixed')
+
+    # Step 2: Fall back to keyword matching
+    name_lower = name.lower().strip()
     for group, rules in KALLENBACH_CLASS_RULES.items():
         for kw in rules['keywords']:
             if kw.lower() in name_lower:
