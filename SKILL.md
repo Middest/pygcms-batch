@@ -300,7 +300,18 @@ Confirmed cases (2026-08-01, QGD EI spectra, all base m/z 58):
 **Workflow**: when QGD raw files exist, scan each treatment's EI spectra for
 peaks whose base peak is m/z 58 (trimethylamine/tetramethylammonium) and
 remove them as TMAH reagent peaks, independent of the NIST-assigned name.
-See `scripts/diag_trimethylamine.py` (the paddy-soil session diagnostic).
+Use the generic CLI (`diag_trimethylamine.py` is now part of this skill):
+
+```
+python scripts/diag_trimethylamine.py --qgd <QGD_dir> --txt <TXT_dir> \
+    --sample_map sample_map.json [--rt_tolerance 0.35] [--tic_min 50000] \
+    [--output tmah_peaks.json]
+```
+
+The spectral test is: base peak m/z 58±0.5 AND m/z 59/base >0.10 AND
+m/z 42/base >0.15 AND frac58 >0.12 → TMAH reagent peak, regardless of NIST
+name. Feed the output JSON into `corrections.json` or use it for targeted
+FINAL removal.
 The distinction from *genuine* N-methylated soil compounds (e.g.
 N,N,N'-trimethylethylenediamine, kept by user decision) is the spectrum: a
 pure TMA peak shows only the m/z 58/59/42 cluster (plus CO₂ m/z 44

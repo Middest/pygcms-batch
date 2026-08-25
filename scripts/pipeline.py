@@ -846,7 +846,7 @@ def main():
     parser.add_argument("--keep_tmah", action="store_true",
                         help="Keep TMAH thermochemolysis artifacts in output")
     parser.add_argument("--no_renormalize", action="store_true",
-                        help="Report raw Conc% sums instead of renormalizing to 100%")
+                        help="Report raw Conc%% sums instead of renormalizing to 100%%")
     parser.add_argument("--reference", default="CK",
                         help="Reference treatment for RT alignment")
     args = parser.parse_args()
