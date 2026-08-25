@@ -65,12 +65,12 @@ def compute_nosc_and_dg(atoms):
     """
     Compute NOSC (Nominal Oxidation State of Carbon) and ΔG_COX.
 
-    NOSC = -((-Z + 4*C + H - 3*N - 2*O + 5*P - 2*S) / C)
-    where Z = net charge (assumed 0 for neutral molecules)
+    NOSC = 4 - ((4*C + H - 3*N - 2*O + 5*P - 2*S) / C)
 
     ΔG_COX = 60.3 - 28.5 * NOSC  (kJ per mol C)
 
-    Reference: LaRowe & Van Cappellen 2011; Wu et al. 2025 Nature Food
+    Reference: LaRowe & Van Cappellen 2011, GCA 75:2036;
+               Wu et al. 2025 Nature Food
     """
     C = atoms.get('C', 0)
     H = atoms.get('H', 0)
@@ -78,12 +78,12 @@ def compute_nosc_and_dg(atoms):
     O = atoms.get('O', 0)
     P = atoms.get('P', 0)
     S = atoms.get('S', 0)
-    Z = 0  # neutral molecules
 
     if C == 0:
         return None, None
 
-    nosc = -((-Z + 4*C + H - 3*N - 2*O + 5*P - 2*S) / C)
+    ratio = (4*C + H - 3*N - 2*O + 5*P - 2*S) / C
+    nosc = 4 - ratio
     dg_cox = 60.3 - 28.5 * nosc
 
     return round(nosc, 6), round(dg_cox, 3)

@@ -1,0 +1,16 @@
+{
+  "5": "CK",
+  "6": "BC7.5",
+  "7": "BC15",
+  "8": "BC30",
+  "_notes": {
+    "experiment": "Haicheng paddy soil biochar MAOC Py-GC-MS",
+    "derivatization": "TMAH (20% tetramethylammonium hydroxide in MeOH, 20uL per 5.0mg soil, 60min activation)",
+    "pyrolysis": "500C, HP-5MS column, Shimadzu QP5K, m/z 29-850",
+    "dates": "CK/BC15/BC30: 2026-06-30; BC7.5: 2026-06-10",
+    "corrections": {
+      "BC15": {"3.215": "Toluene (originally 1,5-Heptadien-3-yne, corrected via EI spectrum verification)"}
+    },
+    "classification": "Shahriar 2026 (ES&T) 12-class scheme + Chen 2023 + Kallenbach 2016"
+  }
+}
