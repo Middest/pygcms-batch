@@ -114,11 +114,12 @@ def main():
     ap.add_argument("--qgd", required=True, help="QGD 文件目录")
     ap.add_argument("--txt", required=True, help="NIST TXT 目录")
     ap.add_argument("--sample_map", help="JSON: {'5':'CK',...}")
+    ap.add_argument("--features", help="可选：Stage1 features_clean.csv（含 peak_id，用于关联决策）")
     ap.add_argument("--rt_tolerance", type=float, default=0.35,
                     help="TXT/QGD 时间基偏移容差 (min)")
     ap.add_argument("--tic_min", type=float, default=50000.0,
                     help="TIC 峰高下限")
-    ap.add_argument("--output", help="可选：输出 JSON 清单（TMAH 试剂峰）")
+    ap.add_argument("--output", help="输出目录（写入 tmah_decisions.csv 与 JSON 清单）")
     args = ap.parse_args()
 
     lib = load_shahriar_library()
@@ -128,7 +129,21 @@ def main():
             sample_map = json.load(f)
             sample_map.pop("_notes", None)
 
+    # 预加载 features_clean.csv（若提供）用于 peak_id 关联
+    peak_by_key = {}  # (sample_id, rt) -> peak_id
+    if args.features and os.path.exists(args.features):
+        import csv as _csv
+        with open(args.features, encoding="utf-8-sig") as f:
+            for row in _csv.DictReader(f):
+                try:
+                    rt = float(row.get("rt_min", ""))
+                except (TypeError, ValueError):
+                    continue
+                peak_by_key[(row.get("sample_id", ""), round(rt, 3))] = row.get("peak_id", "")
+        print(f"Loaded {len(peak_by_key)} peaks from features_clean.csv")
+
     all_hits = {}
+    decision_rows = []
     for sid in sorted(sample_map.keys()):
         trt = sample_map[sid]
         qgd = os.path.join(args.qgd, f"{sid}.qgd")
@@ -142,14 +157,53 @@ def main():
             txt = os.path.join(args.txt, f"{sid}.TXT")
         hits = scan(qgd, txt, trt, args.rt_tolerance, args.tic_min, lib)
         for h in hits:
-            if h.get("txt_rt") is not None:
-                all_hits.setdefault(trt, {})[str(h["txt_rt"])] = h["name"]
+            if h.get("txt_rt") is None:
+                continue
+            rt_key = round(h["txt_rt"], 3)
+            peak_id = peak_by_key.get((trt, rt_key), "")
+            decision = "EXCLUDE"
+            reason = "TMAH_REAGENT_PATTERN"
+            # 仅当谱以 m/z58/59/42 为主时 EXCLUDE；否则 REVIEW
+            if h.get("frac58", 0) < 0.20:
+                decision, reason = "REVIEW", "WEAK_MZ58_SIGNAL"
+            all_hits.setdefault(trt, {})[str(rt_key)] = h["name"]
+            decision_rows.append({
+                "peak_id": peak_id,
+                "sample_id": trt,
+                "rt_min": rt_key,
+                "compound_name": h.get("name", ""),
+                "mz58_fraction": h.get("frac58", ""),
+                "tic": h.get("tic", ""),
+                "decision": decision,
+                "reason": reason,
+            })
 
     if args.output:
-        with open(args.output, "w", encoding="utf-8") as f:
+        os.makedirs(args.output, exist_ok=True)
+        # canonical Stage 4 output: tmah_decisions.csv
+        import csv as _csv
+        dec_path = os.path.join(args.output, "tmah_decisions.csv")
+        if decision_rows:
+            with open(dec_path, "w", newline="", encoding="utf-8-sig") as f:
+                w = _csv.DictWriter(f, fieldnames=list(decision_rows[0].keys()))
+                w.writeheader()
+                for r in decision_rows:
+                    w.writerow(r)
+            print(f"\nTMAH 决策表已写入: {dec_path}")
+        else:
+            # 无检出时也写空表（带表头），保证数据契约存在
+            with open(dec_path, "w", newline="", encoding="utf-8-sig") as f:
+                w = _csv.DictWriter(f, fieldnames=[
+                    "peak_id", "sample_id", "rt_min", "compound_name",
+                    "mz58_fraction", "tic", "decision", "reason"])
+                w.writeheader()
+            print(f"\nTMAH 决策表（空）已写入: {dec_path}")
+        json_path = os.path.join(args.output, "tmah_hits.json")
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(all_hits, f, ensure_ascii=False, indent=2)
-        print(f"\nTMAH 试剂峰清单已写入: {args.output}")
-        print("可将该清单并入 corrections.json / 或直接用于 FINAL 定向剔除。")
+        print(f"TMAH 谱检清单已写入: {json_path}")
+        print("注意: 请勿将剔除语义写入 corrections.json（该文件仅用于改名）。"
+              "Stage 5 apply_final.py 会读取 tmah_decisions.csv 执行剔除。")
 
 
 if __name__ == "__main__":

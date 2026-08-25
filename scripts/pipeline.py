@@ -737,6 +737,9 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
         n_filt = len(removed)
         print(f"  {tname}: {n_filt} peaks flagged ({len(kept)} pass)")
 
+    # ---- Step 2.5: Assign permanent peak_id (before any downstream stage) ----
+    peaks_by_treatment = assign_peak_ids(peaks_by_treatment, sample_map)
+
     # ---- Step 3: Align ----
     print(f"\n[3/7] RT alignment (reference={reference_treatment}, tolerance=0.08 min)...")
     ref_idx = next((i for i, (n, _) in enumerate(peaks_by_treatment) if n == reference_treatment), 0)
@@ -777,7 +780,6 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
             name = row.get(f"name_{t}", "")
             row[f"class_{t}"] = classify_compound(name, library)
         row["msi_level"] = assign_msi_level(row, library)
-
     levels = Counter(r["msi_level"] for r in matrix)
     print(f"  Level_2: {levels.get('Level_2',0)}, Level_3: {levels.get('Level_3',0)}, Level_4: {levels.get('Level_4',0)}")
 
@@ -794,7 +796,9 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
         cats = Counter()
         for p in peaks:
             if not p.get("filtered"):
-                cats[classify_compound(p["name"], library)] += 1
+                cls = classify_compound(p["name"], library)
+                p["class_current"] = cls
+                cats[cls] += 1
         total = sum(cats.values())
         top3 = cats.most_common(3)
         print(f"  {tname}: {total} classified, top: {', '.join(f'{c}({n})' for c,n in top3)}")
@@ -811,17 +815,20 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
     print("\n[8/8] Exporting results...")
     # Generate filter log
     generate_filter_log(peaks_by_treatment, output_dir)
+    # Canonical Stage 1 output: peak-level features with permanent peak_id
+    features_path = export_features_clean(peaks_by_treatment, output_dir)
     csv_path, report_path = export_results(
         matrix, validation, treatment_names, output_dir, library, peaks_by_treatment
     )
 
     print(f"\n{'='*60}")
     print(f"PIPELINE COMPLETE")
+    print(f"  Features (peak-level): {features_path}")
     print(f"  Analysis-ready data: {csv_path}")
     print(f"  Quality report: {report_path}")
     print(f"{'='*60}")
 
-    return csv_path, report_path
+    return csv_path, report_path, features_path
 
 
 # ============================================================
@@ -987,6 +994,62 @@ def generate_filter_log(peaks_by_treatment, output_dir):
                 ])
     print(f"  Filter log: {log_path}")
     return log_path
+
+
+def assign_peak_ids(peaks_by_treatment, sample_map):
+    """Assign permanent unique peak_id to every raw peak.
+
+    peak_id = {sample_id}__{seq:04d}   (sample_id = treatment name)
+    Never use floating-point RT as a unique key downstream.
+    Also records compound_name_raw (never modified) and initializes
+    compound_name_current (= raw at first) and status/exclusion_reason.
+    """
+    for tname, peaks in peaks_by_treatment:
+        for seq, p in enumerate(peaks, 1):
+            p["peak_id"] = f"{tname}__{seq:04d}"
+            p["sample_id"] = tname
+            p["compound_name_raw"] = p.get("name", "")
+            p["compound_name_current"] = p.get("name", "")
+            p.setdefault("status", "EXCLUDED" if p.get("filtered") else "ACTIVE")
+            p.setdefault("exclusion_reason", p.get("filter_reason", ""))
+    return peaks_by_treatment
+
+
+def export_features_clean(peaks_by_treatment, output_dir):
+    """Export peak-level features_clean.csv (canonical Stage 1 output).
+
+    One row per raw peak, with permanent peak_id, raw/current names,
+    status and exclusion reason. Downstream stages (EI rename, TMAH
+    exclusion) reference peaks by peak_id only.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    path = os.path.join(output_dir, "features_clean.csv")
+    fields = [
+        "peak_id", "sample_id", "rt_min", "area", "height", "conc",
+        "si", "compound_name_raw", "compound_name_current",
+        "class_current", "status", "exclusion_reason",
+    ]
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        for tname, peaks in peaks_by_treatment:
+            for p in peaks:
+                writer.writerow({
+                    "peak_id": p.get("peak_id", ""),
+                    "sample_id": p.get("sample_id", tname),
+                    "rt_min": p.get("rt", ""),
+                    "area": p.get("area", ""),
+                    "height": p.get("height", ""),
+                    "conc": p.get("conc", ""),
+                    "si": p.get("si", ""),
+                    "compound_name_raw": p.get("compound_name_raw", p.get("name", "")),
+                    "compound_name_current": p.get("compound_name_current", p.get("name", "")),
+                    "class_current": p.get("class_current", ""),
+                    "status": p.get("status", "EXCLUDED" if p.get("filtered") else "ACTIVE"),
+                    "exclusion_reason": p.get("exclusion_reason", p.get("filter_reason", "")),
+                })
+    print(f"  Features (peak-level): {path}")
+    return path
 
 
 # ============================================================

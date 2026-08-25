@@ -343,7 +343,6 @@ def main():
             "Cosine_min": round(min(sims.values()), 3) if sims else "",
             "Unified_class": unified_class if verdict == "UNIFIED" else r.get("Class_ref", ""),
         })
-
     print(f"  UNIFIED (same compound, ID noise): {n_unified}")
     print(f"  GENUINE_DIFF (different spectra): {n_kept_sep}")
     print(f"  NO_SPECTRA (unresolved): {n_no_spec}")
@@ -363,8 +362,33 @@ def main():
         for cls in sorted(unified, key=lambda c: -max(unified[c].values())):
             w.writerow([cls] + [round(unified[cls][t], 2) for t in trts])
 
+    # NEW: canonical ei_decisions.csv (Stage 3 output for apply_final.py)
+    # decision: UNIFIED / GENUINE_DIFF / NO_SPECTRA (kept enum for compatibility)
+    ei_path = os.path.join(args.output, "ei_decisions.csv")
+    with open(ei_path, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.DictWriter(f, fieldnames=[
+            "feature_id", "rt_ref", "name_ref", "verdict", "n_treatments",
+            "cosine_min", "unified_class", "reason",
+        ])
+        w.writeheader()
+        for r in out_rows:
+            reason = ("EI_COSINE_GE_THRESHOLD" if r["Verdict"] == "UNIFIED"
+                      else "EI_COSINE_LT_THRESHOLD" if r["Verdict"] == "GENUINE_DIFF"
+                      else "NO_QGD_SPECTRUM")
+            w.writerow({
+                "feature_id": r["Feature"],
+                "rt_ref": r["RT_ref"],
+                "name_ref": r["Name_ref"],
+                "verdict": r["Verdict"],
+                "n_treatments": r["N_treatments"],
+                "cosine_min": r["Cosine_min"],
+                "unified_class": r["Unified_class"],
+                "reason": reason,
+            })
+
     print(f"\nWrote: {args.output}/conflict_resolution.csv")
     print(f"      {args.output}/unified_conflict_class_composition.csv")
+    print(f"      {args.output}/ei_decisions.csv")
     # close QGD files
     for q in qgd_cache.values():
         if q:
