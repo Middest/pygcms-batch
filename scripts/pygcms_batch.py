@@ -3,7 +3,7 @@
 Py-GC-MS Batch Analysis Script
 ================================
 Batch process NIST search export TXT files from Py-GC-MS analysis.
-Filters SI>=80, classifies compounds by Chen 2023 and Kallenbach 2016 schemes,
+Applies the SI hard gate (default SI>=80), classifies by Chen 2023 and Kallenbach 2016 schemes,
 computes elemental composition, NOSC, and ΔG_COX.
 
 Usage:
@@ -27,6 +27,61 @@ from openpyxl.utils import get_column_letter
 # Path to the built-in lookup table (relative to this script)
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _DEFAULT_LOOKUP = os.path.join(_SCRIPT_DIR, '..', 'data', 'chen_lookup.json')
+
+
+# ============================================================================
+# SI HARD GATE (must match pipeline.py / verify_data.py)
+# ============================================================================
+# The operator must be fixed BEFORE looking at results: '>=' and '>' differ by
+# 53 peaks (3.34%) on this project's dataset, which silently changes every
+# reported percentage. Project convention is '>=' (matches the historical
+# SI80 workbooks). Previously the threshold was hard-coded as 80 in several
+# places here, which could silently disagree with the pipeline gate.
+DEFAULT_SI_THRESHOLD = 80
+SI_OPERATORS = (">=", ">")
+
+# Module-level gate, set once from the CLI in main(). Kept as module state
+# because this legacy script threads peaks through several nested helpers.
+SI_THRESHOLD = DEFAULT_SI_THRESHOLD
+SI_OPERATOR = ">="
+
+
+def si_passes(si, threshold=None, operator=None):
+    """True if one peak's SI satisfies the hard gate.
+
+    threshold None means "no gate". A missing SI (None / empty / non-numeric /
+    <=0 from a failed library search) counts as NOT passing: an unidentified
+    peak must not enter the candidate set.
+    """
+    threshold = SI_THRESHOLD if threshold is None else threshold
+    operator = SI_OPERATOR if operator is None else operator
+    if threshold is None:
+        return True
+    if operator not in SI_OPERATORS:
+        raise ValueError(f"si_operator must be one of {SI_OPERATORS}, got {operator!r}")
+    try:
+        v = float(si)
+    except (TypeError, ValueError):
+        return False
+    return v >= float(threshold) if operator == ">=" else v > float(threshold)
+
+
+def si_gate_label(threshold=None, operator=None):
+    """Human-readable gate description (so labels can never lie about口径)."""
+    threshold = SI_THRESHOLD if threshold is None else threshold
+    operator = SI_OPERATOR if operator is None else operator
+    if threshold is None:
+        return "no SI gate"
+    return f"SI{operator}{float(threshold):g}"
+
+
+def set_si_gate(threshold=DEFAULT_SI_THRESHOLD, operator=">="):
+    """Set the module-level gate (called from main())."""
+    global SI_THRESHOLD, SI_OPERATOR
+    if operator not in SI_OPERATORS:
+        raise ValueError(f"si_operator must be one of {SI_OPERATORS}, got {operator!r}")
+    SI_THRESHOLD = threshold
+    SI_OPERATOR = operator
 
 
 # ============================================================================
@@ -307,7 +362,8 @@ def parse_nist_txt(filepath):
     Extracts data from BOTH [MC Peak Table] (for TIC area) and
     [MS Similarity Search Results for Spectrum Process Table] (for SI, CAS, formula).
 
-    Returns list of dicts, each containing merged peak data for Hit#1 entries with SI>=80.
+    Returns list of dicts, each containing merged peak data for Hit#1 entries.
+    (The SI hard gate is applied by the caller via si_passes().)
     """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read()
@@ -395,7 +451,7 @@ def parse_nist_txt(filepath):
                         pass
 
     # === Step 3: Merge NIST data with MC Peak Table data ===
-    # Build ALL peaks (including SI<80) and SI>=80 filtered peaks
+    # Build ALL peaks and the gate-filtered peak list
     all_peaks = []
     filtered_peaks = []
 
@@ -428,7 +484,7 @@ def parse_nist_txt(filepath):
         }
 
         all_peaks.append(peak_entry)
-        if nist['si'] >= 80:
+        if si_passes(nist['si']):
             filtered_peaks.append(peak_entry)
 
     # Also include MC peaks that had no NIST hit (SI=0, no formula)
@@ -1042,7 +1098,8 @@ def process_directory(input_dir, sample_map=None, enrich=False, enrich_delay=0.5
                 'filtered_peaks': filtered_peaks
             }
 
-            print(f"    MC={len(all_peaks)}, NIST_searched={nist_total}, SI>=80={len(filtered_peaks)}")
+            print(f"    MC={len(all_peaks)}, NIST_searched={nist_total}, "
+                  f"{si_gate_label()}={len(filtered_peaks)}")
 
     if enrich:
         print(f"\n  Total enriched from NIST WebBook: {total_enriched} compounds")
@@ -1051,7 +1108,7 @@ def process_directory(input_dir, sample_map=None, enrich=False, enrich_delay=0.5
 
 
 def compute_statistics(results):
-    """Compute source attribution and group statistics (on SI>=80 filtered data)."""
+    """Compute source attribution and group statistics (on gate-filtered data)."""
     stats = {}
 
     for treatment, data in results.items():
@@ -1119,7 +1176,7 @@ def write_excel(results, stats, output_path):
                 '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
                 'H/C', 'O/C', '分子量',
                 'Chen化学类别', 'Chen来源归属', 'Kallenbach化学类别', 'Kallenbach来源归属',
-                'NOSC', 'ΔG_COX', 'SI>=80']
+                'NOSC', 'ΔG_COX', si_gate_label()]
     for col, h in enumerate(headers1, 1):
         ws1.cell(row=1, column=col, value=h)
     style_header(ws1, 1, len(headers1))
@@ -1131,7 +1188,7 @@ def write_excel(results, stats, output_path):
             atoms = p.get('atoms', {})
             other_elem = ', '.join(f'{k}:{v}' for k, v in atoms.get('other', {}).items()) if atoms.get('other') else ''
             si = p.get('si', 0)
-            passed = 'Yes' if si >= 80 else 'No'
+            passed = 'Yes' if si_passes(si) else 'No'
 
             ws1.cell(row=row, column=1, value=treatment)
             ws1.cell(row=row, column=2, value=p['peak_num'])
@@ -1165,9 +1222,10 @@ def write_excel(results, stats, output_path):
 
     # --- Sheet 2: 筛选统计 ---
     ws12 = wb.create_sheet('筛选统计')
-    headers12 = ['样品代码', '处理', 'MC总峰数', 'NIST检索峰数', 'SI>=80峰数',
-                 'SI>=80保留率_%', 'MC总面积', 'SI>=80总面积', 'SI>=80面积保留率_%',
-                 'SI>=80唯一化合物数', '含卤素/其他元素化合物数']
+    _g = si_gate_label()          # 表头随实际口径变化，避免口径改了而表头说谎
+    headers12 = ['样品代码', '处理', 'MC总峰数', 'NIST检索峰数', f'{_g}峰数',
+                 f'{_g}保留率_%', 'MC总面积', f'{_g}总面积', f'{_g}面积保留率_%',
+                 f'{_g}唯一化合物数', '含卤素/其他元素化合物数']
     for col, h in enumerate(headers12, 1):
         ws12.cell(row=1, column=col, value=h)
     style_header(ws12, 1, len(headers12))
@@ -1197,7 +1255,7 @@ def write_excel(results, stats, output_path):
             ws12.cell(row=row, column=col).border = thin_border
         row += 1
 
-    # --- Sheet 3: SI>=80 分类详细 (Chen) ---
+    # --- Sheet 3: gate-filtered classification detail (Chen) ---
     ws2 = wb.create_sheet('Chen_分类详细')
     headers2 = ['处理', '峰号', '保留时间_min', '峰面积', '相对丰度_%', 'SI', 'CAS',
                 '化合物名称', '分子式', 'C', 'H', 'O', 'N', 'P', 'S', '其他元素',
@@ -1488,7 +1546,8 @@ def write_excel(results, stats, output_path):
         [''],
         ['项目', '说明'],
         ['1. 分析方法', '基于NIST搜索导出TXT文件的MC Peak Table解析'],
-        ['2. SI筛选', '保留SI>=80的化合物（对应NIST Match Factor >= 80%）'],
+        ['2. SI筛选', f'保留 {si_gate_label()} 的化合物（对应 NIST Match Factor；'
+                      f'算子与阈值须与 pipeline.py / verify_data.py 一致）'],
         ['3. Chen 2023分类', '参考Chen et al. 2023, Carbon Research 2:1. DOI: 10.1007/s44246-022-00034-0'],
         ['4. Kallenbach 2016分类', '参考Kallenbach et al. 2016, Nature Communications 7:13630. DOI: 10.1038/ncomms13630'],
         ['5. 来源归属', '植物源(plant)、微生物源(microbial)、混合来源(mixed)'],
@@ -1545,8 +1604,17 @@ def main():
                         help='Query NIST Chemistry WebBook to fill missing molecular formulas')
     parser.add_argument('--enrich_delay', type=float, default=0.5,
                         help='Delay in seconds between WebBook queries (default: 0.5)')
+    parser.add_argument('--si_threshold', type=float, default=DEFAULT_SI_THRESHOLD,
+                        help=f'SI hard gate (default: {DEFAULT_SI_THRESHOLD}, project convention). '
+                             'Must match pipeline.py / verify_data.py')
+    parser.add_argument('--si_operator', choices=list(SI_OPERATORS), default='>=',
+                        help="SI gate operator (default: '>='; '>' is strict. The two differ "
+                             "by 53 peaks / 3.34% on this dataset — fix before looking at results)")
 
     args = parser.parse_args()
+
+    set_si_gate(args.si_threshold, args.si_operator)
+    print(f"SI hard gate: {si_gate_label()} (must match pipeline.py / verify_data.py)")
 
     # Load sample mapping
     sample_map = {}
@@ -1580,8 +1648,8 @@ def main():
     for treatment, st in stats.items():
         print(f"\n{treatment}:")
         d = results[treatment]
-        print(f"  MC peaks: {d.get('mc_total_peaks','?')} | NIST searched: {d.get('nist_searched_peaks','?')} | SI>=80: {d.get('si80_peaks','?')}")
-        print(f"  Total area (SI>=80): {st['total_area']:,.0f}")
+        print(f"  MC peaks: {d.get('mc_total_peaks','?')} | NIST searched: {d.get('nist_searched_peaks','?')} | {si_gate_label()}: {d.get('si80_peaks','?')}")
+        print(f"  Total area ({si_gate_label()}): {st['total_area']:,.0f}")
         for source in ['plant', 'microbial', 'mixed']:
             val = st['chen_source'].get(source, 0)
             print(f"  {source}: {val:.2f}%")

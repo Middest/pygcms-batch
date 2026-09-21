@@ -1,6 +1,6 @@
 ---
 name: pygcms-batch
-description: Batch process Py-GC-MS NIST export TXT files. Filter by SI>=80, remove TMAH thermochemolysis artifacts (reagent-derived N compounds), renormalize class composition to 100%, classify compounds by Chen 2023 (Carbon Research) and Kallenbach 2016 (Nature Communications) schemes, compute elemental atoms (C/H/O/N/P/S), NOSC, DG_COX, and source attribution (plant/microbial/mixed). Output multi-sheet Excel. Data verification with Shahriar 2026 library, cross-treatment RT alignment, and ID conflict detection.
+description: Batch process Py-GC-MS NIST export TXT files. Apply the SI hard gate (default SI>=80 with operator '>=', configurable via --si_threshold/--si_operator), remove TMAH thermochemolysis artifacts (reagent-derived N compounds), renormalize class composition to 100%, classify compounds by Chen 2023 (Carbon Research) and Kallenbach 2016 (Nature Communications) schemes, compute elemental atoms (C/H/O/N/P/S), NOSC, DG_COX, and source attribution (plant/microbial/mixed). Output multi-sheet Excel. Data verification with Shahriar 2026 library, cross-treatment RT alignment, and ID conflict detection.
 ---
 
 # Py-GC-MS Batch Analysis
@@ -20,7 +20,7 @@ This runs: PARSE -> FILTER -> ALIGN -> RESOLVE -> CLASSIFY -> VALIDATE -> EXPORT
 1. Auto-detect all `.TXT` files in input directory (recursively)
 2. Parse `[MC Peak Table]` for TIC peak areas and retention times
 3. Parse `[MS Similarity Search Results for Spectrum Process Table]` for NIST library matches
-4. Filter compounds: SI >= 80 (NIST Match Factor)
+4. Apply the **SI hard gate** to every peak (default `SI>=80`; see "SI Hard Gate" below)
 5. **Remove TMAH thermochemolysis artifacts** (reagent-derived N compounds that
    otherwise inflate the microbial signal — see "TMAH Thermochemolysis Artifact Removal" below)
 6. Merge MC area data with NIST match data (SI, CAS, molecular formula, molecular weight)
@@ -55,6 +55,34 @@ python scripts/pygcms_batch.py --input <TXT_directory> --output <output.xlsx> --
   "8": "BC30"
 }
 ```
+
+## SI Hard Gate
+
+The SI gate decides which peaks enter the analysis. It is applied to **every** peak.
+
+| Setting | Default | Notes |
+|---|---|---|
+| `--si_threshold` | `80` | Project convention |
+| `--si_operator` | `>=` | `>=` keeps SI == threshold; `>` is strictly greater |
+
+**Fix the operator before looking at results.** `>=` and `>` differ by **53 peaks
+(3.34%)** on this project's dataset — enough to silently change every reported
+percentage. Project convention is `>=` (matches the historical `SI80` workbooks).
+
+**A peak with no library hit counts as unidentified.** `si_passes()` treats
+`None` / empty / non-numeric / `<= 0` as failing, so such peaks are removed
+whenever a gate is active. The older form `if p["si"] > 0 and p["si"] < threshold`
+let them through untouched — fixed (latent on this dataset: 0 of 3826 peaks).
+
+**Keep the gate identical across scripts.** `pipeline.py` (G1), `verify_data.py`
+(G2) and `pygcms_batch.py` all take `--si_threshold` / `--si_operator`.
+`verify_data.py` imports the判据 from `pipeline.py`, so there is a single source of
+truth. The workflow runner passes one value to all of them via
+`filters.si_threshold` / `filters.si_operator`.
+
+Report labels and Excel headers are derived from the gate, so they cannot claim
+`SI>=80` while the run actually used something else. Regression tests:
+`tests/test_si_gate.py`.
 
 ## Output Excel sheets
 

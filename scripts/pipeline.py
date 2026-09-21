@@ -5,7 +5,7 @@ Complete workflow from raw TXT/QGD files to analysis-ready data.
 
 Steps:
   1. PARSE    - Read NIST export TXT files
-  2. FILTER   - Remove contaminants, SI threshold
+  2. FILTER   - Remove contaminants, apply the SI hard gate
   3. ALIGN    - Cross-treatment RT alignment
   4. RESOLVE  - ID conflicts via EI spectrum or corrections file
   5. CLASSIFY - Shahriar 2026 12-class scheme
@@ -16,8 +16,17 @@ Usage:
   python pipeline.py --input <TXT_dir> --output <output_dir>
        [--sample_map <mapping.json>]
        [--corrections <corrections.json>]
-       [--si_threshold 70] [--keep_contaminants]
-       [--keep_tmah] [--no_renormalize]
+       [--si_threshold 80] [--si_operator ">="]
+       [--keep_contaminants] [--keep_tmah] [--no_renormalize]
+
+SI hard gate:
+  Applied to EVERY peak. The operator must be fixed before looking at results:
+  '>=' and '>' differ by 53 peaks (3.34%) on this project's dataset, which
+  silently changes every reported percentage. Project convention is '>='
+  (matches the historical SI80 workbooks). A peak with no library hit
+  (SI=0/NA) is unidentified and is removed whenever a gate is active.
+  Keep this consistent with the workflow config (filters.si_threshold /
+  filters.si_operator) and with verify_data.py.
 
 Cleaning notes:
   - TMAH thermochemolysis artifacts (trimethylamine, trimethyltriazine,
@@ -78,6 +87,41 @@ DERIVATIZATION_ARTIFACTS = [
     "trimethylsilyl", "tert-butyldimethylsilyl", "tms derivative",
     "bis(trimethylsilyl)", "silyl",
 ]
+
+# ============================================================
+# SI hard gate (single source of truth)
+# ============================================================
+# The operator must be fixed BEFORE looking at results: '>=' and '>' differ by
+# 53 peaks (3.34%) on this project's dataset, which silently changes every
+# reported percentage. Project convention is '>=' (matches the historical
+# MAOC_PyGCMS_SI80_* / POC_PyGCMS_SI80_* workbooks).
+DEFAULT_SI_THRESHOLD = 80
+SI_OPERATORS = (">=", ">")
+
+
+def si_passes(si, threshold, operator=">="):
+    """Return True if one peak's SI satisfies the hard gate.
+
+    threshold None/0 means "no gate" (keep everything).
+    A missing SI (None / empty / non-numeric / <=0 from a failed library search)
+    counts as NOT passing: an unidentified peak must not enter the candidate set.
+    """
+    if threshold is None:
+        return True
+    if operator not in SI_OPERATORS:
+        raise ValueError(f"si_operator must be one of {SI_OPERATORS}, got {operator!r}")
+    try:
+        v = float(si)
+    except (TypeError, ValueError):
+        return False
+    return v >= float(threshold) if operator == ">=" else v > float(threshold)
+
+
+def si_gate_label(si_threshold, si_operator=">="):
+    """Human-readable gate description for reports."""
+    if si_threshold is None:
+        return "no SI gate"
+    return f"SI{si_operator}{float(si_threshold):g}"
 
 
 def is_tmah_artifact(name):
@@ -186,8 +230,14 @@ def parse_txt(filepath):
 # STEP 2: FILTER
 # ============================================================
 
-def filter_peaks(peaks, si_threshold=70, remove_contaminants=True, remove_tmah=True):
+def filter_peaks(peaks, si_threshold=DEFAULT_SI_THRESHOLD, si_operator=">=",
+                 remove_contaminants=True, remove_tmah=True):
     """Apply quality filters to peak list.
+
+    The SI hard gate applies to EVERY peak. A peak whose library search returned
+    no hit (si == 0 / None) is unidentified and is therefore removed whenever a
+    gate is active — the previous `si > 0 and si < threshold` form let those
+    peaks through untouched.
 
     Returns (kept_peaks, removed_peaks) with filtering reasons.
     """
@@ -196,9 +246,13 @@ def filter_peaks(peaks, si_threshold=70, remove_contaminants=True, remove_tmah=T
     for p in peaks:
         reasons = []
 
-        # SI check
-        if p["si"] > 0 and p["si"] < si_threshold:
-            reasons.append(f"SI={p['si']}<{si_threshold}")
+        # SI hard gate
+        if not si_passes(p.get("si"), si_threshold, si_operator):
+            _si = p.get("si")
+            if _si is None or float(_si or 0) <= 0:
+                reasons.append(f"SI=0/NA (gate {si_gate_label(si_threshold, si_operator)})")
+            else:
+                reasons.append(f"SI={_si} (gate {si_gate_label(si_threshold, si_operator)})")
 
         # Contaminant check
         is_contam = False
@@ -446,13 +500,16 @@ def resolve_conflicts(matrix, library):
 # STEP 6: VALIDATE
 # ============================================================
 
-def validate(peaks_by_treatment, matrix, library, renormalize=True):
+def validate(peaks_by_treatment, matrix, library, renormalize=True,
+             si_threshold=DEFAULT_SI_THRESHOLD, si_operator=">="):
     """Run validation checks and return results dict.
 
     Args:
         renormalize: If True, class conc is renormalized to relative % of
             kept-peak total (sums to 100 per treatment). If False, raw
             Conc% sums are reported (do not sum to 100 when peaks filtered).
+        si_threshold / si_operator: the SI hard gate actually used by
+            filter_peaks — the reported SI counts must reflect the same口径.
     """
     results = {}
 
@@ -461,14 +518,15 @@ def validate(peaks_by_treatment, matrix, library, renormalize=True):
         total = sum(p["conc"] for p in peaks if not p.get("filtered"))
         results[f"mass_balance_{tname}"] = round(total, 1)
 
-    # SI statistics
+    # SI statistics (tiers are descriptive; the gate itself comes from config)
     for tname, peaks in peaks_by_treatment:
-        si_vals = [p["si"] for p in peaks if p["si"] > 0]
-        si_ok = sum(1 for s in si_vals if s >= 80)
+        si_vals = [p["si"] for p in peaks if p["si"] and p["si"] > 0]
+        si_ok = sum(1 for s in si_vals if si_passes(s, si_threshold, si_operator))
         si_hi = sum(1 for s in si_vals if s >= 90)
         si_lo = sum(1 for s in si_vals if s < 70)
         results[f"si_{tname}"] = {
-            "total": len(si_vals), "ok": si_ok, "high": si_hi, "low": si_lo
+            "total": len(si_vals), "ok": si_ok, "high": si_hi, "low": si_lo,
+            "n_peaks": len(peaks), "no_si": len(peaks) - len(si_vals),
         }
 
     # Conflict summary
@@ -511,8 +569,14 @@ def validate(peaks_by_treatment, matrix, library, renormalize=True):
 # STEP 7: EXPORT
 # ============================================================
 
-def export_results(matrix, validation, treatment_names, output_dir, library, peaks_by_treatment):
-    """Export analysis-ready CSV and verification report."""
+def export_results(matrix, validation, treatment_names, output_dir, library, peaks_by_treatment,
+                   si_threshold=DEFAULT_SI_THRESHOLD, si_operator=">="):
+    """Export analysis-ready CSV and verification report.
+
+    si_threshold / si_operator are written into the report so the SI口径 is
+    recorded with the results (a report that silently assumes 80 would lie if
+    the gate were changed).
+    """
     os.makedirs(output_dir, exist_ok=True)
 
     # ---- CSV: analysis-ready matrix ----
@@ -584,15 +648,20 @@ def export_results(matrix, validation, treatment_names, output_dir, library, pea
         f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
 
         f.write("## 1. Filtering Summary\n\n")
-        f.write("| Treatment | Raw Peaks | Kept | Filtered | SI>=80 | SI>=90 | SI<70 | TMAH_artifacts |\n")
-        f.write("|-----------|-----------|------|----------|--------|--------|-------|----------------|\n")
+        _gl = si_gate_label(si_threshold, si_operator)
+        f.write(f"SI hard gate: **{_gl}** (fixed before analysis; applied to every peak).\n")
+        f.write("Peaks with no library hit (SI=0/NA) count as unidentified and are removed "
+                "whenever a gate is active.\n\n")
+        f.write(f"| Treatment | Raw Peaks | Kept | Filtered | {_gl} | SI>=90 | SI<70 | SI=0/NA | TMAH_artifacts |\n")
+        f.write("|-----------|-----------|------|----------|--------|--------|-------|---------|----------------|\n")
         for tname, peaks in peaks_by_treatment:
             raw = len(peaks)
             kept = sum(1 for p in peaks if not p.get("filtered"))
             filt = raw - kept
             n_tmah = sum(1 for p in peaks if p.get("filtered") and "artifact" in p.get("filter_reason", ""))
             si = validation[f"si_{tname}"]
-            f.write(f"| {tname} | {raw} | {kept} | {filt} | {si['ok']} | {si['high']} | {si['low']} | {n_tmah} |\n")
+            f.write(f"| {tname} | {raw} | {kept} | {filt} | {si['ok']} | {si['high']} | {si['low']} "
+                    f"| {si.get('no_si', 0)} | {n_tmah} |\n")
 
         f.write("\n_TMAH artifacts: reagent-derived thermochemolysis products (trimethylamine,\n")
         f.write("trimethyltriazine, tetramethylmethanediamine, methenamine, dimethylaminoacetonitrile).\n")
@@ -657,7 +726,10 @@ def export_results(matrix, validation, treatment_names, output_dir, library, pea
             issues.append(f"{validation['conflicts']['high']} cross-class conflicts need manual review")
         for t in treatment_names:
             if validation[f"si_{t}"]["low"] > validation[f"si_{t}"]["total"] * 0.3:
-                issues.append(f"{t}: >30% peaks with SI<70")
+                issues.append(f"{t}: >30% of searched peaks have SI<70")
+            if validation[f"si_{t}"].get("no_si", 0):
+                issues.append(f"{t}: {validation[f'si_{t}']['no_si']} peaks with no library hit "
+                              f"(SI=0/NA) — removed by the gate, worth checking")
 
         if issues:
             f.write("**Issues requiring attention:**\n\n")
@@ -677,7 +749,8 @@ def export_results(matrix, validation, treatment_names, output_dir, library, pea
 # ============================================================
 
 def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
-                 si_threshold=70, remove_contaminants=True, remove_tmah=True,
+                 si_threshold=DEFAULT_SI_THRESHOLD, si_operator=">=",
+                 remove_contaminants=True, remove_tmah=True,
                  renormalize=True, reference_treatment="CK"):
     """Execute the complete raw-to-analysis pipeline.
 
@@ -686,7 +759,9 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
         output_dir: Output directory for results
         sample_map: Dict mapping filename prefix -> treatment name
         corrections: Dict mapping treatment -> {RT: correct_name}
-        si_threshold: Minimum SI for retention (0 = keep all)
+        si_threshold: SI hard gate (None = keep all). Default 80 (project convention).
+        si_operator: '>=' (default, keeps SI==threshold) or '>' (strictly greater).
+                     Must be fixed before looking at results and applied uniformly.
         remove_contaminants: Whether to flag/remove known contaminants
         remove_tmah: Whether to remove TMAH thermochemolysis artifacts
         renormalize: Whether to renormalize class composition to 100%
@@ -729,10 +804,12 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
     print(f"  Treatments: {', '.join(treatment_names)}")
 
     # ---- Step 2: Filter ----
-    print(f"\n[2/7] Filtering (SI>={si_threshold}, contaminants={'removed' if remove_contaminants else 'kept'}, "
+    print(f"\n[2/7] Filtering ({si_gate_label(si_threshold, si_operator)}, "
+          f"contaminants={'removed' if remove_contaminants else 'kept'}, "
           f"TMAH artifacts={'removed' if remove_tmah else 'kept'})...")
     for i, (tname, peaks) in enumerate(peaks_by_treatment):
-        kept, removed = filter_peaks(peaks, si_threshold, remove_contaminants, remove_tmah)
+        kept, removed = filter_peaks(peaks, si_threshold, si_operator,
+                                     remove_contaminants, remove_tmah)
         peaks_by_treatment[i] = (tname, kept + removed)  # keep all, just flag
         n_filt = len(removed)
         print(f"  {tname}: {n_filt} peaks flagged ({len(kept)} pass)")
@@ -805,7 +882,8 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
 
     # ---- Step 7: Validate ----
     print("\n[7/8] Validating...")
-    validation = validate(peaks_by_treatment, matrix, library, renormalize=renormalize)
+    validation = validate(peaks_by_treatment, matrix, library, renormalize=renormalize,
+                          si_threshold=si_threshold, si_operator=si_operator)
 
     for t in treatment_names:
         s = validation[f"source_{t}"]
@@ -818,7 +896,8 @@ def run_pipeline(input_dir, output_dir, sample_map=None, corrections=None,
     # Canonical Stage 1 output: peak-level features with permanent peak_id
     features_path = export_features_clean(peaks_by_treatment, output_dir)
     csv_path, report_path = export_results(
-        matrix, validation, treatment_names, output_dir, library, peaks_by_treatment
+        matrix, validation, treatment_names, output_dir, library, peaks_by_treatment,
+        si_threshold=si_threshold, si_operator=si_operator
     )
 
     print(f"\n{'='*60}")
@@ -846,8 +925,12 @@ def main():
                         help="JSON: {'5':'CK','6':'BC7.5',...}")
     parser.add_argument("--corrections",
                         help="JSON: {'BC15':{'3.215':'Toluene'}}")
-    parser.add_argument("--si_threshold", type=int, default=70,
-                        help="Minimum SI (default: 70)")
+    parser.add_argument("--si_threshold", type=float, default=DEFAULT_SI_THRESHOLD,
+                        help=f"SI hard gate (default: {DEFAULT_SI_THRESHOLD}, project convention)")
+    parser.add_argument("--si_operator", choices=list(SI_OPERATORS), default=">=",
+                        help="SI gate operator (default: '>='; '>' is strict. "
+                             "Fix this before looking at results — the two differ by "
+                             "53 peaks / 3.34% on this project's dataset)")
     parser.add_argument("--keep_contaminants", action="store_true",
                         help="Keep known contaminants in output")
     parser.add_argument("--keep_tmah", action="store_true",
@@ -877,6 +960,7 @@ def main():
         sample_map=sample_map,
         corrections=corrections,
         si_threshold=args.si_threshold,
+        si_operator=args.si_operator,
         remove_contaminants=not args.keep_contaminants,
         remove_tmah=not args.keep_tmah,
         renormalize=not args.no_renormalize,
@@ -895,6 +979,10 @@ def assign_msi_level(row, library):
     Level 2: Putative annotation (SI>=90 + consistent RT across samples)
     Level 3: Compound class only (SI>=80 or library match)
     Level 4: Unknown feature (SI<80 or no reliable classification)
+
+    NOTE: the 90/80 cuts below are FIXED descriptive confidence tiers for the
+    output table. They are independent of --si_threshold (the hard gate that
+    decides which peaks enter the analysis). Do not conflate the two.
     """
     # Check SI values across all treatments
     si_vals = []

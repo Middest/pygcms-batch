@@ -16,6 +16,11 @@ Corrections JSON format:
   (key=treatment, nested key=RT, value=corrected compound name)
 """
 import os, sys, json, csv, argparse
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# SI 口径的单一来源：与 pipeline.py（G1）用同一套判据，避免 G2 偷偷用另一套门槛
+from pipeline import (si_passes, si_gate_label,  # noqa: E402
+                      DEFAULT_SI_THRESHOLD, SI_OPERATORS)
 from collections import defaultdict, Counter
 from pathlib import Path
 try:
@@ -207,8 +212,13 @@ def verify_cross_treatment(parsed, library, qgd_dir=None):
     return report
 
 
-def generate_report(parsed, verify_result, library, output_dir, sample_names=None):
-    """Generate verification report in Markdown."""
+def generate_report(parsed, verify_result, library, output_dir, sample_names=None,
+                    si_threshold=DEFAULT_SI_THRESHOLD, si_operator=">="):
+    """Generate verification report in Markdown.
+
+    si_threshold / si_operator must match the gate used by pipeline.py (G1);
+    this report only characterises the data under that same gate.
+    """
     if sample_names is None:
         sample_names = {0: "CK", 1: "BC7.5", 2: "BC15", 3: "BC30"}
 
@@ -220,15 +230,21 @@ def generate_report(parsed, verify_result, library, output_dir, sample_names=Non
 
         # 1. Data integrity
         f.write("## 1. Data Integrity\n\n")
-        f.write("| Sample | Peaks | SI>=80 | SI>=90 | SI<70 | Total Area |\n")
-        f.write("|--------|-------|--------|--------|-------|------------|\n")
+        _gl = si_gate_label(si_threshold, si_operator)
+        f.write(f"SI hard gate: **{_gl}** — must be identical to G1 "
+                f"(pipeline.py --si_threshold/--si_operator).\n")
+        f.write("SI=0/NA = no library hit (unidentified); removed whenever a gate is active.\n\n")
+        f.write(f"| Sample | Peaks | {_gl} | SI>=90 | SI<70 | SI=0/NA | Total Area |\n")
+        f.write("|--------|-------|--------|--------|-------|---------|------------|\n")
         for idx, data in enumerate(parsed):
             n = len(data)
-            si_ok = sum(1 for p in data if p["si"] >= 80)
-            si_hi = sum(1 for p in data if p["si"] >= 90)
-            si_lo = sum(1 for p in data if 0 < p["si"] < 70)
+            si_ok = sum(1 for p in data if si_passes(p["si"], si_threshold, si_operator))
+            si_hi = sum(1 for p in data if p["si"] and p["si"] >= 90)
+            si_lo = sum(1 for p in data if p["si"] and 0 < p["si"] < 70)
+            si_na = sum(1 for p in data if not p["si"] or p["si"] <= 0)
             total_a = sum(p["area"] for p in data)
-            f.write(f"| {sample_names[idx]} | {n} | {si_ok} | {si_hi} | {si_lo} | {total_a:,} |\n")
+            f.write(f"| {sample_names[idx]} | {n} | {si_ok} | {si_hi} | {si_lo} | {si_na} "
+                    f"| {total_a:,} |\n")
 
         # 2. Class composition
         f.write("\n## 2. Compound Class Composition (Shahriar 2026)\n\n")
@@ -310,6 +326,10 @@ def main():
     parser.add_argument("--output", required=True, help="Output directory for reports")
     parser.add_argument("--sample_map", help="JSON mapping file: {'5':'CK','6':'BC7.5',...}")
     parser.add_argument("--corrections", help="JSON corrections: {'BC15':{'3.215':'Toluene'}}")
+    parser.add_argument("--si_threshold", type=float, default=DEFAULT_SI_THRESHOLD,
+                        help=f"SI hard gate — MUST match G1 (default: {DEFAULT_SI_THRESHOLD})")
+    parser.add_argument("--si_operator", choices=list(SI_OPERATORS), default=">=",
+                        help="SI gate operator — MUST match G1 (default: '>=')")
     args = parser.parse_args()
 
     # Load sample map
@@ -360,7 +380,11 @@ def main():
     # Report
     print("\nGenerating report...")
     sample_names = {i: sample_map[sid] for i, sid in enumerate(sorted(sample_map.keys()))}
-    report_path = generate_report(parsed, result, library, args.output, sample_names)
+    print(f"  SI gate: {si_gate_label(args.si_threshold, args.si_operator)} "
+          f"(must match G1)")
+    report_path = generate_report(parsed, result, library, args.output, sample_names,
+                                  si_threshold=args.si_threshold,
+                                  si_operator=args.si_operator)
 
     print(f"\nDone: {report_path}")
 
